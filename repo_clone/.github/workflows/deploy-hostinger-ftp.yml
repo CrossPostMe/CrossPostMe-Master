@@ -1,0 +1,36 @@
+name: Deploy Frontend to Hostinger FTP
+
+on:
+  push:
+    branches:
+      - feat/add-diagrams-api
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build frontend
+        run: |
+          cd app/frontend
+          yarn install --frozen-lockfile
+          yarn build
+
+      - name: Upload build to Hostinger FTP
+        uses: sebastianpopp/ftp-action@v2.0.0
+        with:
+          host: ${{ secrets.HOSTINGER_FTP_HOST }}
+          user: ${{ secrets.HOSTINGER_FTP_USER }}
+          password: ${{ secrets.HOSTINGER_FTP_PASS }}
+          localDir: app/frontend/build
+          remoteDir: /home/u132063632/domains/crosspostme.com/public_html
+
+# Required secrets to add in GitHub repository:
+# HOSTINGER_FTP_HOST=ftp.crosspostme.com
+# HOSTINGER_FTP_USER=u132063632.crosspostme
+# HOSTINGER_FTP_PASS=<your FTP password>
+#
+# This workflow will build the frontend and upload the build output to Hostinger via FTP.
+# Make sure to add the secrets in your repository settings before running this workflow.

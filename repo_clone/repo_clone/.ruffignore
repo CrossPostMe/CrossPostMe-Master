@@ -1,0 +1,4 @@
+# Ignore nested duplicate application trees created by backups or deployments
+app/app/**
+CrossPostMe-Deployment-*/app/**
+*/app/app/**
