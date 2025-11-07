@@ -1,0 +1,38 @@
+{
+  "python.linting.enabled": true,
+  "python.linting.mypyEnabled": true,
+  "python.linting.mypyArgs": ["--config-file", "${workspaceFolder}/mypy.ini"],
+  "python.analysis.diagnosticSeverityOverrides": {
+    "reportMissingImports": "warning",
+    "reportOptionalMemberAccess": "warning",
+    "reportOptionalSubscript": "warning",
+    "reportGeneralTypeIssues": "warning"
+  },
+  "python.analysis.typeCheckingMode": "basic",
+  "python.testing.pytestArgs": [
+    "."
+  ],
+  "python.testing.unittestEnabled": false,
+  "python.testing.pytestEnabled": true,
+  "coderabbit.agentType": "Claude Code",
+  "coderabbit.autoReviewMode": "prompt",
+  "coderabbit.selfHostedUrl": "https://coderabbit.crosspostme.com",
+  "files.autoSave": "onWindowChange",
+  "editor.defaultFormatter": "GitHub.copilot",
+  "editor.formatOnPaste": true,
+  "editor.autoIndentOnPaste": true,
+  "editor.codeActions.triggerOnFocusChange": true,
+  "editor.definitionLinkOpensInPeek": false,
+  "editor.experimentalGpuAcceleration": "on",
+  "editor.formatOnSave": true,
+  "github.copilot.nextEditSuggestions.enabled": true,
+  "github.copilot.chat.languageContext.fix.typescript.enabled": true,
+  "github.copilot.chat.languageContext.inline.typescript.enabled": true,
+  "github.copilot.chat.languageContext.typescript.enabled": true,
+  "chat.mcp.serverSampling": {
+
+  },
+  "chat.promptFilesRecommendations": {
+    "enabled": true
+  }
+}

@@ -1,0 +1,40 @@
+version: '3.8'
+services:
+  mongo:
+    image: mongo:6.0
+    restart: always
+    ports:
+      - "27018:27017"
+    environment:
+      MONGO_INITDB_DATABASE: crosspostme
+    volumes:
+      - mongo_data:/data/db
+
+  backend:
+    build: ./app/backend
+    command: uvicorn server:app --reload --host 0.0.0.0 --port 8000
+    volumes:
+      - ./app/backend:/app/backend
+    ports:
+      - "8000:8000"
+    environment:
+      MONGO_URL: mongodb://mongo:27017
+      DB_NAME: crosspostme
+      CORS_ORIGINS: http://localhost:3000
+    depends_on:
+      - mongo
+
+  frontend:
+    build: ./app/frontend
+    command: yarn start
+    volumes:
+      - ./app/frontend:/app/frontend
+    ports:
+      - "3000:3000"
+    environment:
+      REACT_APP_API_URL: http://localhost:8000/api
+    depends_on:
+      - backend
+
+volumes:
+  mongo_data:

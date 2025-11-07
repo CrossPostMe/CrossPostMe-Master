@@ -1,0 +1,41 @@
+jobs:
+name: Deploy Frontend to Hostinger FTP
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install and build frontend
+        run: |
+          cd app/frontend
+          yarn install --frozen-lockfile
+          yarn build
+
+      - name: Upload build to Hostinger FTP (CI uploader)
+        run: |
+          python3 app/scripts/ci_upload_ftplib.py \
+            --host "${{ secrets.HOSTINGER_FTP_HOST }}" \
+            --user "${{ secrets.HOSTINGER_FTP_USER }}" \
+            --password "${{ secrets.HOSTINGER_FTP_PASS }}" \
+            --local "app/frontend/build" \
+            --remote "/home/u132063632/domains/crosspostme.com/public_html"
+
+# Required secrets to add in GitHub repository:
+# HOSTINGER_FTP_HOST=ftp.crosspostme.com
+# HOSTINGER_FTP_USER=u132063632.crosspostme
+# HOSTINGER_FTP_PASS=<your FTP password>
+# Required secrets to add in GitHub repository:
+# HOSTINGER_FTP_HOST=ftp.crosspostme.com
+# HOSTINGER_FTP_USER=u132063632.crosspostme
+# HOSTINGER_FTP_PASS=<your FTP password>
