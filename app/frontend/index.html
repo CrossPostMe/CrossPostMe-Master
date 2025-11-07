@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+        <link rel="manifest" href="/manifest.json" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta name="theme-color" content="#3B82F6" />
+        <meta name="description" content="Cross-post your items to OfferUp, Craigslist, Facebook Marketplace, and eBay automatically. Sell everywhere at once with CrossPostMe.com" />
+        <meta name="keywords" content="crosspost, listings, automation, marketplace, craigslist, facebook, ebay, offerup, sell, multi-platform" />
+        <meta property="og:title" content="CrossPostMe.com - Sell Everywhere at Once" />
+        <meta property="og:description" content="Cross-post your items to OfferUp, Craigslist, Facebook Marketplace, and eBay automatically. Sell everywhere at once with CrossPostMe.com" />
+        <meta property="og:image" content="/og-image.png" />
+        <meta property="og:url" content="https://crosspostme.com" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="CrossPostMe.com - Sell Everywhere at Once" />
+        <meta name="twitter:description" content="Cross-post your items to OfferUp, Craigslist, Facebook Marketplace, and eBay automatically." />
+        <meta name="twitter:image" content="/og-image.png" />
+        <title>CrossPostMe.com - Sell Everywhere at Once | Multi-Platform Marketplace Posting</title>
+        <!--
+        These two scripts have been added for the testing, please do not edit or remove them
+        -->
+        <script src="https://unpkg.com/rrweb@latest/dist/rrweb.min.js"></script>
+        <script src="https://d2adkz2s9zrlge.cloudfront.net/rrweb-recorder-20250919-1.js"></script>
+    </head>
+    <body>
+        <noscript>You need to enable JavaScript to run this app.</noscript>
+        <div id="root">
+            <!-- Preload splash screen - shown while app loads -->
+            <div id="splash-screen" style="
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+                z-index: 9999;
+                transition: opacity 0.5s ease-out;
+            ">
+                <div style="text-align: center; color: white; max-width: 500px; padding: 20px;">
+                    <!-- Logo/Icon -->
+                    <div style="
+                        width: 120px;
+                        height: 120px;
+                        margin: 0 auto 30px;
+                        background: rgba(255, 255, 255, 0.2);
+                        border-radius: 24px;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        font-size: 60px;
+                        backdrop-filter: blur(10px);
+                        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+                    ">
+                        📱
+                    </div>
+                    
+                    <!-- Title -->
+                    <h1 style="
+                        font-size: 42px;
+                        font-weight: 700;
+                        margin: 0 0 12px 0;
+                        letter-spacing: -0.5px;
+                    ">CrossPostMe</h1>
+                    
+                    <!-- Tagline -->
+                    <p style="
+                        font-size: 18px;
+                        margin: 0 0 30px 0;
+                        opacity: 0.9;
+                        font-weight: 300;
+                    ">Sell Everywhere at Once</p>
+                    
+                    <!-- Progress Bar Container -->
+                    <div style="
+                        width: 100%;
+                        max-width: 400px;
+                        margin: 0 auto 20px;
+                    ">
+                        <div style="
+                            width: 100%;
+                            height: 8px;
+                            background: rgba(255, 255, 255, 0.2);
+                            border-radius: 10px;
+                            overflow: hidden;
+                            margin-bottom: 12px;
+                        ">
+                            <div id="progress-bar" style="
+                                height: 100%;
+                                width: 0%;
+                                background: white;
+                                border-radius: 10px;
+                                transition: width 0.3s ease-out;
+                                box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+                            "></div>
+                        </div>
+                        
+                        <!-- Loading Status Text -->
+                        <p id="loading-status" style="
+                            font-size: 14px;
+                            margin: 0;
+                            opacity: 0.8;
+                            font-weight: 400;
+                        ">Loading resources...</p>
+                    </div>
+                    
+                    <!-- Action Buttons (hidden initially) -->
+                    <div id="action-buttons" style="
+                        display: none;
+                        gap: 16px;
+                        margin-top: 30px;
+                        flex-direction: column;
+                        align-items: center;
+                    ">
+                        <a href="/register" style="
+                            display: inline-block;
+                            padding: 14px 32px;
+                            background: white;
+                            color: #667eea;
+                            text-decoration: none;
+                            border-radius: 12px;
+                            font-weight: 600;
+                            font-size: 16px;
+                            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+                            transition: transform 0.2s, box-shadow 0.2s;
+                            min-width: 200px;
+                        " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 16px rgba(0, 0, 0, 0.2)'"
+                           onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 12px rgba(0, 0, 0, 0.15)'">
+                            Get Started
+                        </a>
+                        
+                        <a href="#download" style="
+                            display: inline-block;
+                            padding: 14px 32px;
+                            background: rgba(255, 255, 255, 0.2);
+                            color: white;
+                            text-decoration: none;
+                            border-radius: 12px;
+                            font-weight: 600;
+                            font-size: 16px;
+                            border: 2px solid white;
+                            transition: background 0.2s;
+                            min-width: 200px;
+                        " onmouseover="this.style.background='rgba(255, 255, 255, 0.3)'"
+                           onmouseout="this.style.background='rgba(255, 255, 255, 0.2)'">
+                            📱 Download App
+                        </a>
+                    </div>
+                </div>
+            </div>
+            
+            <style>
+                @keyframes spin {
+                    to { transform: rotate(360deg); }
+                }
+                
+                /* Fade out animation for splash screen */
+                .splash-fade-out {
+                    opacity: 0;
+                    pointer-events: none;
+                }
+            </style>
+            
+            <script>
+                // Preload progress tracking
+                (function() {
+                    const progressBar = document.getElementById('progress-bar');
+                    const loadingStatus = document.getElementById('loading-status');
+                    const actionButtons = document.getElementById('action-buttons');
+                    const splashScreen = document.getElementById('splash-screen');
+                    
+                    let progress = 0;
+                    const resources = [];
+                    const loadedResources = new Set();
+                    
+                    // Track script loading
+                    const scriptObserver = new PerformanceObserver((list) => {
+                        for (const entry of list.getEntries()) {
+                            if (entry.initiatorType === 'script' || entry.initiatorType === 'css') {
+                                resources.push(entry.name);
+                            }
+                        }
+                    });
+                    
+                    try {
+                        scriptObserver.observe({ entryTypes: ['resource'] });
+                    } catch (e) {
+                        console.log('Performance observer not supported');
+                    }
+                    
+                    // Simulate progressive loading
+                    const stages = [
+                        { progress: 20, text: 'Loading core modules...', delay: 100 },
+                        { progress: 40, text: 'Loading UI components...', delay: 200 },
+                        { progress: 60, text: 'Loading assets...', delay: 300 },
+                        { progress: 80, text: 'Initializing application...', delay: 400 },
+                        { progress: 95, text: 'Almost ready...', delay: 500 }
+                    ];
+                    
+                    let currentStage = 0;
+                    
+                    function updateProgress() {
+                        if (currentStage < stages.length) {
+                            const stage = stages[currentStage];
+                            progressBar.style.width = stage.progress + '%';
+                            loadingStatus.textContent = stage.text;
+                            currentStage++;
+                            setTimeout(updateProgress, stage.delay);
+                        }
+                    }
+                    
+                    // Start progress animation
+                    setTimeout(updateProgress, 100);
+                    
+                    // Complete loading
+                    window.addEventListener('load', () => {
+                        setTimeout(() => {
+                            progressBar.style.width = '100%';
+                            loadingStatus.textContent = 'Ready!';
+                            
+                            // Show action buttons after 500ms
+                            setTimeout(() => {
+                                actionButtons.style.display = 'flex';
+                            }, 500);
+                        }, 100);
+                    });
+                    
+                    // Store splash control for React to use
+                    window.removeSplashScreen = function() {
+                        splashScreen.classList.add('splash-fade-out');
+                        setTimeout(() => splashScreen.remove(), 500);
+                    };
+                })();
+            </script>
+        </div>
+        <script type="module" src="/src/index.jsx"></script>
+        <script>
+            !(function (t, e) {
+                var o, n, p, r;
+                e.__SV ||
+                    ((window.posthog = e),
+                    (e._i = []),
+                    (e.init = function (i, s, a) {
+                        function g(t, e) {
+                            var o = e.split(".");
+                            2 == o.length && ((t = t[o[0]]), (e = o[1])),
+                                (t[e] = function () {
+                                    t.push(
+                                        [e].concat(
+                                            Array.prototype.slice.call(
+                                                arguments,
+                                                0,
+                                            ),
+                                        ),
+                                    );
+                                });
+                        }
+                        ((p = t.createElement("script")).type =
+                            "text/javascript"),
+                            (p.crossOrigin = "anonymous"),
+                            (p.async = !0),
+                            (p.src =
+                                s.api_host.replace(
+                                    ".i.posthog.com",
+                                    "-assets.i.posthog.com",
+                                ) + "/static/array.js"),
+                            (r =
+                                t.getElementsByTagName(
+                                    "script",
+                                )[0]).parentNode.insertBefore(p, r);
+                        var u = e;
+                        for (
+                            void 0 !== a ? (u = e[a] = []) : (a = "posthog"),
+                                u.people = u.people || [],
+                                u.toString = function (t) {
+                                    var e = "posthog";
+                                    return (
+                                        "posthog" !== a && (e += "." + a),
+                                        e
+                                    );
+                                },
+                                u.people.toString = function () {
+                                    return u.toString(1) + ".people";
+                                },
+                                o =
+                                    "init me ws ys ps bs capture je Di ks register register_once register_for_session unregister unregister_for_session Ps getFeatureFlag getFeatureFlagPayload isFeatureEnabled reloadFeatureFlags updateEarlyAccessFeatureEnrollment getEarlyAccessFeatures on onFeatureFlags onSurveysLoaded onSessionId getSurveys getActiveMatchingSurveys renderSurvey canRenderSurvey canRenderSurveyAsync identify setPersonProperties group resetGroups setPersonPropertiesForFlags resetPersonPropertiesForFlags setGroupPropertiesForFlags resetGroupPropertiesForFlags reset get_distinct_id getGroups get_session_id get_session_replay_url alias set_config startSessionRecording stopSessionRecording sessionRecordingStarted captureException loadToolbar get_property getSessionProperty Es $s createPersonProfile Is opt_in_capturing opt_out_capturing has_opted_in_capturing has_opted_out_capturing clear_opt_in_out_capturing Ss debug xs getPageViewId captureTraceFeedback captureTraceMetric".split(
+                                        " ",
+                                    ),
+                                n = 0;
+                            n < o.length;
+                            n++
+                        )
+                            g(u, o[n]);
+                        e._i.push([i, s, a]);
+                    }),
+                    (e.__SV = 1));
+            })(document, window.posthog || []);
+            posthog.init("phc_yJW1VjHGGwmCbbrtczfqqNxgBDbhlhOWcdzcIJEOTFE", {
+                api_host: "https://us.i.posthog.com",
+                person_profiles: "identified_only",
+            });
+        </script>
+    </body>
+</html>

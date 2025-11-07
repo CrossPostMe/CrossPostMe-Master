@@ -1,0 +1,25 @@
+# Ignore local snapshot
+master_snapshot/
+
+# Node
+node_modules/
+package-lock.json
+
+# Frontend build
+app/frontend/build/
+
+# Python venvs
+.venv/
+venv/
+
+# Test results
+test-results/
+
+# IDEs
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+# Ignore local snapshot\nmaster_snapshot/
