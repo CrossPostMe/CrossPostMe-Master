@@ -59,16 +59,15 @@ def should_check_file(filepath):
     # Only check text files (by extension)
     text_extensions = {
         '.py', '.js', '.jsx', '.ts', '.tsx', '.json', '.md', '.txt',
-        '.html', '.css', '.scss', '.yaml', '.yml', '.sh', '.bash',
-        '.env.example', '.env.template'
+        '.html', '.css', '.scss', '.yaml', '.yml', '.sh', '.bash'
     }
     
     # Check if file has a text extension
     if filepath.suffix in text_extensions:
         return True
     
-    # Check for extensionless files that might be text
-    if filepath.suffix == '' and filepath.name in {'.gitignore', 'Dockerfile', 'README'}:
+    # Check for specific extensionless or template files that might be text
+    if filepath.name in {'.gitignore', 'Dockerfile', 'README', '.env.example', '.env.template'}:
         return True
     
     return False
