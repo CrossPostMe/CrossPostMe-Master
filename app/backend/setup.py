@@ -33,7 +33,7 @@ setup(
         "dev": [
             "pytest>=8.0.0,<9.0.0",  # Testing framework
             "black>=24.1.1,<25.0.0",  # Code formatter
-            "isort>=5.13.2,<6.0.0",  # Import sorter
+            "isort>=5.13.2,<8.0.0",  # Import sorter
             "flake8>=7.0.0,<8.0.0",  # Linter
             "mypy>=1.8.0,<2.0.0",  # Static type checker
         ],
