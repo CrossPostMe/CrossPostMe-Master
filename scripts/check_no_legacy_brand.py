@@ -46,6 +46,21 @@ EXCLUDE_PATTERNS = [
     r'scripts/check_no_legacy_brand\.py$',
 ]
 
+# Text file extensions to check
+TEXT_EXTENSIONS = {
+    '.py', '.js', '.jsx', '.ts', '.tsx', '.json', '.md', '.txt',
+    '.html', '.css', '.scss', '.yaml', '.yml', '.sh', '.bash'
+}
+
+# Specific filenames to check (extensionless or template files)
+SPECIAL_FILENAMES = {
+    '.gitignore',
+    'Dockerfile',
+    'README',
+    '.env.example',
+    '.env.template'
+}
+
 
 def should_check_file(filepath):
     """Determine if a file should be checked for legacy tokens."""
@@ -56,18 +71,12 @@ def should_check_file(filepath):
         if re.search(pattern, filepath_str):
             return False
     
-    # Only check text files (by extension)
-    text_extensions = {
-        '.py', '.js', '.jsx', '.ts', '.tsx', '.json', '.md', '.txt',
-        '.html', '.css', '.scss', '.yaml', '.yml', '.sh', '.bash'
-    }
-    
     # Check if file has a text extension
-    if filepath.suffix in text_extensions:
+    if filepath.suffix in TEXT_EXTENSIONS:
         return True
     
-    # Check for specific extensionless or template files that might be text
-    if filepath.name in {'.gitignore', 'Dockerfile', 'README', '.env.example', '.env.template'}:
+    # Check for specific extensionless or template files
+    if filepath.name in SPECIAL_FILENAMES:
         return True
     
     return False

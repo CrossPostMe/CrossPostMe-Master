@@ -1,6 +1,6 @@
 # Git Hooks
 
-This directory contains custom Git hooks for the CrossPostMe repository.
+This directory contains custom Git hooks for the repository.
 
 ## Setup
 
