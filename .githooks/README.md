@@ -27,23 +27,25 @@ Prevents committing legacy brand tokens (old internal names or deprecated brand 
 
 **Manual execution:**
 ```bash
-python scripts/check_no_legacy_brand.py --staged
+python app/scripts/check_no_legacy_brand.py --staged
 ```
 
 ## Adding Legacy Tokens
 
 To add tokens that should be blocked from commits:
 
-1. Edit `scripts/check_no_legacy_brand.py`
-2. Add tokens to the `LEGACY_TOKENS` list
+1. Edit `app/scripts/check_no_legacy_brand.py`
+2. Add patterns to the `LEGACY_PATTERNS` list
 3. Tokens are checked case-insensitively
 
 Example:
 ```python
-LEGACY_TOKENS = [
-    "OldBrandName",
-    "DeprecatedName",
-    "InternalCodename",
+LEGACY_PATTERNS = [
+    re.compile(p, re.IGNORECASE) for p in [
+        r"market\s*wiz",
+        r"marketwiz",
+        r"OldBrandName",
+    ]
 ]
 ```
 
