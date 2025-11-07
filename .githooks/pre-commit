@@ -8,6 +8,9 @@
 # To enable this hook:
 #   git config core.hooksPath .githooks
 #
+# Note: If Python 3 is not installed, the hook will warn but allow the commit.
+# To enforce strict checking, ensure Python 3 is installed on all development machines.
+#
 
 # Get the repository root directory
 REPO_ROOT="$(git rev-parse --show-toplevel)"
@@ -17,13 +20,14 @@ CHECKER_SCRIPT="${REPO_ROOT}/app/scripts/check_no_legacy_brand.py"
 
 # Check if Python 3 is available
 if ! command -v python3 &> /dev/null; then
-    echo "Warning: python3 not found. Skipping legacy brand token check." >&2
+    echo "⚠️  WARNING: python3 not found. Legacy brand token check SKIPPED." >&2
+    echo "   Install Python 3 to enable this protection." >&2
     exit 0
 fi
 
 # Check if the script exists
 if [ ! -f "$CHECKER_SCRIPT" ]; then
-    echo "Warning: check_no_legacy_brand.py not found. Skipping legacy brand token check." >&2
+    echo "⚠️  WARNING: check_no_legacy_brand.py not found. Legacy brand token check SKIPPED." >&2
     exit 0
 fi
 

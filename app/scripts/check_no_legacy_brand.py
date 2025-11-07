@@ -28,23 +28,29 @@ def files_to_check(staged_only: bool):
     if staged_only:
         # get staged files - run git from repository root to get consistent paths
         repo_root = ROOT.parent
-        out = subprocess.run(
-            ["git", "diff", "--cached", "--name-only"], stdout=subprocess.PIPE, cwd=repo_root
-        )
-        all_paths = [p.strip() for p in out.stdout.decode().splitlines() if p.strip()]
+        try:
+            out = subprocess.run(
+                ["git", "diff", "--cached", "--name-only"],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                cwd=repo_root,
+                check=True,
+                text=True
+            )
+        except subprocess.CalledProcessError as e:
+            print(f"Error running git command: {e.stderr}", file=sys.stderr)
+            return []
+        
+        all_paths = [p.strip() for p in out.stdout.splitlines() if p.strip()]
         # Filter to only files in the app/ directory and make them relative to ROOT
         paths = []
+        app_prefix = ROOT.name + "/"  # e.g., "app/"
         for p in all_paths:
-            # Convert to Path to handle both Unix and Windows paths
-            path = Path(p)
-            # Check if it's under the app/ directory
-            try:
-                # Try to make it relative to ROOT (app/)
-                rel_path = path.relative_to(ROOT.name)
-                paths.append(str(rel_path))
-            except ValueError:
-                # Not in app/ directory, skip it
-                continue
+            # Check if path starts with "app/"
+            if p.startswith(app_prefix):
+                # Remove the "app/" prefix to get path relative to ROOT
+                rel_path = p[len(app_prefix):]
+                paths.append(rel_path)
     else:
         paths = [str(p.relative_to(ROOT)) for p in ROOT.rglob("*") if p.is_file()]
     # filter binary files (simple heuristic) and exclude hook/script paths
