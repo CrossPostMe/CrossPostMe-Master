@@ -121,16 +121,25 @@ def check_file(filepath):
     if not filepath.exists():
         return violations
     
+    # Pre-compile regex patterns for better performance
+    compiled_patterns = [
+        (token, re.compile(re.escape(token), re.IGNORECASE))
+        for token in LEGACY_TOKENS
+    ]
+    
     try:
-        with open(filepath, 'r', encoding='utf-8', errors='ignore') as f:
+        with open(filepath, 'r', encoding='utf-8', errors='replace') as f:
             for line_num, line in enumerate(f, start=1):
-                for token in LEGACY_TOKENS:
-                    # Case-insensitive search
-                    if re.search(re.escape(token), line, re.IGNORECASE):
+                for token, pattern in compiled_patterns:
+                    if pattern.search(line):
                         violations.append((line_num, line.rstrip(), token))
-    except Exception as e:
-        # Skip files that can't be read
+    except (IOError, OSError) as e:
+        # Skip files that can't be read (e.g., permission denied, binary files)
+        # Silently skip as these are typically not text files we care about
         pass
+    except Exception as e:
+        # Log unexpected errors but continue checking other files
+        print(f"Warning: Could not check {filepath}: {e}", file=sys.stderr)
     
     return violations
 
