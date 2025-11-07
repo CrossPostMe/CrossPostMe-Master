@@ -1,0 +1,67 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  backend:
+    name: Backend checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install backend requirements
+        run: |
+          python -m venv .venv
+          . .venv/bin/activate
+          python -m pip install --upgrade pip
+          pip install -r app/backend/requirements.txt
+
+      - name: Run mypy
+        run: |
+          . .venv/bin/activate
+          mypy app/backend --config-file mypy.ini
+
+      - name: Run pytest (if tests exist)
+        run: |
+          . .venv/bin/activate
+          if [ -d app/backend/tests ]; then
+            pytest -q app/backend/tests
+          elif [ -d app/tests ]; then
+            pytest -q app/tests
+          else
+            echo "No Python tests found"
+          fi
+
+  frontend:
+    name: Frontend checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'yarn'
+
+      - name: Install frontend dependencies
+        run: yarn install
+        working-directory: app/frontend
+
+      - name: Run frontend tests
+        run: |
+          yarn test --ci --silent
+        working-directory: app/frontend
+        env:
+          CI: true
