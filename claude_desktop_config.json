@@ -1,0 +1,52 @@
+{
+  "mcpServers": {
+    "jetbrains": {
+      "command": "npx",
+      "args": ["-y", "@jetbrains/mcp-proxy"]
+    },
+
+    "filesystem_project_rw": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "--rootDir",
+        "C:\\Users\\johnd\\Desktop\\CrossPostMe_MR",
+        "--allow",
+        "read,search,info,write"
+      ]
+    },
+
+    "git_project": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-git",
+        "--cwd",
+        "C:\\Users\\johnd\\Desktop\\CrossPostMe_MR"
+      ]
+    },
+
+    "shell_restricted": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-shell",
+        "--cwd",
+        "C:\\Users\\johnd\\Desktop\\CrossPostMe_MR",
+        "--allow",
+        "dir,git,docker,node,npm,yarn,python,pip"
+      ]
+    },
+
+    "docker_gateway": {
+      "command": "docker",
+      "args": ["mcp", "gateway", "run"],
+      "env": {
+        "LOCALAPPDATA": "C:\\Users\\johnd\\AppData\\Local",
+        "ProgramData": "C:\\ProgramData",
+        "ProgramFiles": "C:\\Program Files"
+      }
+    }
+  }
+}
