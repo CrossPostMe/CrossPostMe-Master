@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+#
+# Pre-commit hook to check for legacy brand tokens
+#
+# This hook runs the check_no_legacy_brand.py script to prevent
+# accidentally committing old internal names or deprecated brand tokens.
+#
+# To enable this hook:
+#   git config core.hooksPath .githooks
+#
+
+# Get the repository root directory
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+
+# Path to the checker script
+CHECKER_SCRIPT="${REPO_ROOT}/scripts/check_no_legacy_brand.py"
+
+# Check if Python 3 is available
+if ! command -v python3 &> /dev/null; then
+    echo "Warning: python3 not found. Skipping legacy brand token check." >&2
+    exit 0
+fi
+
+# Check if the script exists
+if [ ! -f "$CHECKER_SCRIPT" ]; then
+    echo "Warning: check_no_legacy_brand.py not found. Skipping legacy brand token check." >&2
+    exit 0
+fi
+
+# Run the checker on staged files
+python3 "$CHECKER_SCRIPT" --staged
+
+# Exit with the same exit code as the checker
+exit $?
