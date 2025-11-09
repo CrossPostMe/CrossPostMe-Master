@@ -1,0 +1,67 @@
+name: "Dependabot Daily Summary"
+
+on:
+  schedule:
+    - cron: '0 8 * * *' # daily at 08:00 UTC
+  workflow_dispatch:
+
+jobs:
+  summary:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      pull-requests: read
+
+    steps:
+      - name: Gather open Dependabot PRs and update/create summary issue
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const pulls = await github.rest.pulls.list({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              per_page: 100
+            });
+            const deps = pulls.data.filter(p => p.user && (p.user.login.startsWith('dependabot') || p.user.login === 'dependabot[bot]'));
+            const today = new Date().toISOString().split('T')[0];
+            let body = `# Dependabot Daily Summary (${today})\n\n`;
+            if (deps.length === 0) {
+              body += "No open Dependabot PRs.\n";
+            } else {
+              body += "| PR | Title | Branch | Created | Checks | Status |\\n";
+              body += "|---:|---|---|---:|---|---|\\n";
+              for (const pr of deps) {
+                // get combined status for head ref
+                let checks = 'N/A';
+                try {
+                  const status = await github.rest.repos.getCombinedStatusForRef({ owner: context.repo.owner, repo: context.repo.repo, ref: pr.head.sha });
+                  checks = `${status.data.total_count} checks, state=${status.data.state}`;
+                } catch (e) {
+                  checks = 'unknown';
+                }
+                body += `| #${pr.number} | [${pr.title}](${pr.html_url}) | ${pr.head.ref} | ${new Date(pr.created_at).toISOString().split('T')[0]} | ${checks} | ${pr.state} |\\n`;
+              }
+            }
+
+            const title = 'Dependabot Daily Summary';
+            const issues = await github.rest.issues.listForRepo({ owner: context.repo.owner, repo: context.repo.repo, state: 'open', per_page: 100 });
+            const existing = issues.data.find(i => i.title === title);
+            if (existing) {
+              await github.rest.issues.update({ owner: context.repo.owner, repo: context.repo.repo, issue_number: existing.number, body });
+              core.info(`Updated issue #${existing.number}`);
+            } else {
+              const created = await github.rest.issues.create({ owner: context.repo.owner, repo: context.repo.repo, title, body });
+              core.info(`Created issue #${created.data.number}`);
+            }
+
+      - name: Send Slack notification (if configured)
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          REPO: ${{ github.repository }}
+        run: |
+          if [ -z "$SLACK_WEBHOOK_URL" ]; then
+            echo "SLACK_WEBHOOK_URL not set, skipping Slack notification"
+            exit 0
+          fi
+          json="{\"text\":\"Dependabot Daily Summary updated for ${REPO}. See the issue titled 'Dependabot Daily Summary' in the repository.\"}"
+          curl -sS -X POST -H 'Content-type: application/json' --data "$json" "$SLACK_WEBHOOK_URL"
