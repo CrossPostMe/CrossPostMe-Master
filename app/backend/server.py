@@ -25,6 +25,14 @@ print("DEBUG: MONGO_URL at startup:", os.environ.get("MONGO_URL"))
 
 # Use typed database wrapper
 db = get_typed_db()
+# Flag to indicate test mode when running CI or unit tests locally. When
+# TESTING=true we avoid real DB connections and use an in-memory store to
+# keep the endpoints fast and deterministic in CI/test environments.
+TESTING = os.getenv("TESTING", "false").lower() in ("1", "true", "yes")
+# Module-level in-memory store used during tests when TESTING=True. We use a
+# module variable instead of app.state to ensure it's available even before
+# the FastAPI lifespan handler runs (tests may import `app` at module load).
+_TEST_STATUS_CHECKS: list[dict] = []
 
 
 # Lifespan context manager for startup and shutdown
@@ -33,7 +41,16 @@ async def lifespan(app: FastAPI):
     """Handle startup and shutdown events."""
     from backend.routes.auth import initialize_auth_indexes
 
-    # Startup: Validate DB connectivity and initialize indexes
+    # Startup: In testing mode we skip DB validation and use an in-memory
+    # store for lightweight, deterministic unit tests.
+    if TESTING:
+        logging.info(
+            "TESTING mode enabled - skipping MongoDB validation and using in-memory stores"
+        )
+        yield
+        return
+
+    # Production/startup: Validate DB connectivity and initialize indexes
     max_attempts = int(os.environ.get("MONGO_STARTUP_MAX_RETRIES", "5"))
     base_delay = float(os.environ.get("MONGO_STARTUP_RETRY_DELAY_SECONDS", "3"))
 
@@ -116,16 +133,25 @@ async def create_status_check(status_check_in: StatusCheckCreate) -> StatusCheck
     doc = status_obj.model_dump()
     doc["timestamp"] = doc["timestamp"].isoformat()
 
-    _ = await db.status_checks.insert_one(doc)
+    # In testing mode we keep status checks in-memory to avoid motor/loop
+    # interactions that can fail under the test client. Production uses MongoDB.
+    if TESTING:
+        _TEST_STATUS_CHECKS.append(doc)
+    else:
+        _ = await db.status_checks.insert_one(doc)
     return status_obj
 
 
 @api_router.get("/status", response_model=list[StatusCheck])
 async def get_status_checks() -> list[StatusCheck]:
-    # Exclude MongoDB's _id field from the query results
-    status_checks: List[Dict[str, Any]] = await db.status_checks.find(
-        {}, {"_id": 0}
-    ).to_list(1000)
+    # Exclude MongoDB's _id field from the query results. When running
+    # tests we read from the in-memory store populated by create_status_check.
+    if TESTING:
+        status_checks: List[Dict[str, Any]] = list(_TEST_STATUS_CHECKS)
+    else:
+        status_checks: List[Dict[str, Any]] = await db.status_checks.find(
+            {}, {"_id": 0}
+        ).to_list(1000)
 
     # Convert ISO string timestamps back to datetime objects and map to models
     for check in status_checks:
