@@ -1,0 +1,72 @@
+name: "Automerge Dependabot PRs"
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+
+jobs:
+  enable-automerge:
+    # Only run when the PR author is Dependabot
+    if: |
+      startsWith(github.actor, 'dependabot') || github.actor == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: write
+
+    steps:
+      - name: Auto-approve Dependabot PR using REST API
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            if (pr) {
+              await github.rest.pulls.createReview({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: pr.number,
+                event: 'APPROVE',
+                body: 'Automated approval for Dependabot/Docker dependency update'
+              });
+            }
+
+      - name: Enable GitHub auto-merge for Dependabot PR
+        uses: peter-evans/enable-pull-request-automerge@v2
+        with:
+          # GITHUB_TOKEN has sufficient permissions in workflow by default
+          token: ${{ secrets.GITHUB_TOKEN }}
+          # Pull request number from the event payload
+          pull-request-number: ${{ github.event.pull_request.number }}
+          # Use squash merge; change to 'merge' or 'rebase' if desired
+          merge-method: squash
+
+      - name: Comment that auto-merge was enabled
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            if (pr) {
+              github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: pr.number,
+                body: '✅ Dependabot PR registered for auto-merge when checks pass.'
+              });
+            }
+
+      - name: Send Slack notification (if configured)
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+        run: |
+          if [ -z "$SLACK_WEBHOOK_URL" ]; then
+            echo "SLACK_WEBHOOK_URL not set, skipping Slack notification"
+            exit 0
+          fi
+          PR_NUMBER="$PR_NUMBER"
+          PR_TITLE="$PR_TITLE"
+          PR_URL="$PR_URL"
+          json="{\"text\":\"Dependabot PR #${PR_NUMBER}: ${PR_TITLE} - ${PR_URL} has been auto-approved and auto-merge enabled. It will merge once required checks pass.\"}"
+          curl -sS -X POST -H 'Content-type: application/json' --data "$json" "$SLACK_WEBHOOK_URL"
