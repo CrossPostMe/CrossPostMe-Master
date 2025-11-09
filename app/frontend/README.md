@@ -68,3 +68,18 @@ This section has moved here: [https://facebook.github.io/create-react-app/docs/d
 ### `npm run build` fails to minify
 
 This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+
+## Lockfile & CI
+
+This repository's frontend uses Yarn as the canonical package manager. The CI workflow
+reads lockfiles in `app/frontend/` to populate the dependency cache. To ensure reproducible
+builds and fast CI runs, please commit the lockfile for the package manager you use:
+
+- `yarn.lock` (Yarn)
+- `package-lock.json` (npm)
+- `pnpm-lock.yaml` (pnpm)
+
+The CI is configured to look for any of the above files (in that order). If you change
+package managers, commit the corresponding lockfile and remove unused lockfiles to avoid
+confusion.
+
