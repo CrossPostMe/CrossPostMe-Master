@@ -213,7 +213,9 @@ class EmailMonitoringService:
                 content_type = part.get_content_type()
                 if content_type == "text/plain":
                     payload = part.get_payload(decode=True)
-                    return str(payload.decode("utf-8", errors="ignore")) if payload else ""
+                    return (
+                        str(payload.decode("utf-8", errors="ignore")) if payload else ""
+                    )
         else:
             payload = email_message.get_payload(decode=True)
             return str(payload.decode("utf-8", errors="ignore")) if payload else ""

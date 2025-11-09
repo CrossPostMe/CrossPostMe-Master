@@ -3,12 +3,11 @@ import os
 from datetime import datetime, timezone
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
-
 from auth import get_optional_current_user
 from db import get_typed_db
+from fastapi import APIRouter, Depends, HTTPException
 from models import PlatformAccount, PlatformAccountCreate
+from pydantic import BaseModel
 
 # Import datetime helpers from ads module
 from .ads import deserialize_datetime_fields, serialize_datetime_fields
@@ -60,6 +59,7 @@ async def create_platform_account(
         # --- SUPABASE PATH (PRIMARY) ---
         try:
             from supabase_db import get_supabase
+
             client = get_supabase()
             if client:
                 # Insert into platform_connections table
@@ -72,26 +72,36 @@ async def create_platform_account(
                         "account_email": account.account_email,
                         "status": "active",
                         "created_at": doc.get("created_at"),
-                        "last_used": doc.get("last_used")
-                    }
+                        "last_used": doc.get("last_used"),
+                    },
                 }
-                result = client.table("platform_connections").insert(connection_data).execute()
-                logger.info(f"Platform connection created in Supabase: {account.platform} for user {user_id}")
+                client.table("platform_connections").insert(connection_data).execute()
+                logger.info(
+                    f"Platform connection created in Supabase: {account.platform} for user {user_id}"
+                )
 
                 # PARALLEL WRITE: Also write to MongoDB
                 if PARALLEL_WRITE:
                     try:
                         await db["platform_accounts"].insert_one(doc)
-                        logger.info(f"✅ Parallel write to MongoDB successful for platform account: {account.platform}")
+                        logger.info(
+                            f"✅ Parallel write to MongoDB successful for platform account: {account.platform}"
+                        )
                     except Exception as e:
-                        logger.warning(f"⚠️  Parallel MongoDB write failed for platform account {account.platform}: {e}")
+                        logger.warning(
+                            f"⚠️  Parallel MongoDB write failed for platform account {account.platform}: {e}"
+                        )
         except Exception as e:
             logger.error(f"Platform account creation failed (Supabase): {e}")
-            raise HTTPException(status_code=500, detail="Failed to create platform account")
+            raise HTTPException(
+                status_code=500, detail="Failed to create platform account"
+            )
     else:
         # --- MONGODB PATH (FALLBACK) ---
         await db["platform_accounts"].insert_one(doc)
-        logger.info(f"Platform account created in MongoDB: {account.platform} for user {user_id}")
+        logger.info(
+            f"Platform account created in MongoDB: {account.platform} for user {user_id}"
+        )
 
     return account_obj
 
@@ -108,9 +118,15 @@ async def get_platform_accounts(
         # --- SUPABASE PATH (PRIMARY) ---
         try:
             from supabase_db import get_supabase
+
             client = get_supabase()
             if client:
-                query = client.table("platform_connections").select("*").eq("user_id", user_id).eq("is_active", True)
+                query = (
+                    client.table("platform_connections")
+                    .select("*")
+                    .eq("user_id", user_id)
+                    .eq("is_active", True)
+                )
 
                 if platform:
                     query = query.eq("platform", platform)
@@ -127,24 +143,34 @@ async def get_platform_accounts(
                         "platform": conn["platform"],
                         "account_name": conn.get("platform_user_id", ""),
                         "account_email": metadata.get("account_email", ""),
-                        "status": "active" if conn.get("is_active", True) else "inactive",
+                        "status": (
+                            "active" if conn.get("is_active", True) else "inactive"
+                        ),
                         "created_at": conn.get("created_at"),
                         "last_used": metadata.get("last_used"),
                     }
-                    deserialize_datetime_fields(account_data, ["created_at", "last_used"])
+                    deserialize_datetime_fields(
+                        account_data, ["created_at", "last_used"]
+                    )
                     accounts.append(PlatformAccount(**account_data))
 
-                logger.info(f"Fetched {len(accounts)} platform accounts from Supabase for user {user_id}")
+                logger.info(
+                    f"Fetched {len(accounts)} platform accounts from Supabase for user {user_id}"
+                )
         except Exception as e:
             logger.error(f"Failed to fetch platform accounts from Supabase: {e}")
-            raise HTTPException(status_code=500, detail="Failed to fetch platform accounts")
+            raise HTTPException(
+                status_code=500, detail="Failed to fetch platform accounts"
+            )
     else:
         # --- MONGODB PATH (FALLBACK) ---
         query: dict[str, Any] = {"user_id": user_id}  # Scope by user for security
         if platform:
             query["platform"] = platform
 
-        accounts_docs = await db["platform_accounts"].find(query, {"_id": 0}).to_list(1000)
+        accounts_docs = (
+            await db["platform_accounts"].find(query, {"_id": 0}).to_list(1000)
+        )
 
         # Convert ISO string timestamps back to datetime objects
         for account in accounts_docs:
@@ -166,9 +192,16 @@ async def get_platform_account(
         # --- SUPABASE PATH (PRIMARY) ---
         try:
             from supabase_db import get_supabase
+
             client = get_supabase()
             if client:
-                result = client.table("platform_connections").select("*").eq("id", account_id).eq("user_id", user_id).execute()
+                result = (
+                    client.table("platform_connections")
+                    .select("*")
+                    .eq("id", account_id)
+                    .eq("user_id", user_id)
+                    .execute()
+                )
                 if result.data and len(result.data) > 0:
                     conn = result.data[0]
                     metadata = conn.get("metadata", {})
@@ -178,7 +211,9 @@ async def get_platform_account(
                         "platform": conn["platform"],
                         "account_name": conn.get("platform_user_id", ""),
                         "account_email": metadata.get("account_email", ""),
-                        "status": "active" if conn.get("is_active", True) else "inactive",
+                        "status": (
+                            "active" if conn.get("is_active", True) else "inactive"
+                        ),
                         "created_at": conn.get("created_at"),
                         "last_used": metadata.get("last_used"),
                     }
@@ -186,7 +221,9 @@ async def get_platform_account(
                     logger.info(f"Fetched platform account from Supabase: {account_id}")
         except Exception as e:
             logger.error(f"Failed to fetch platform account from Supabase: {e}")
-            raise HTTPException(status_code=500, detail="Failed to fetch platform account")
+            raise HTTPException(
+                status_code=500, detail="Failed to fetch platform account"
+            )
     else:
         # --- MONGODB PATH (FALLBACK) ---
         account_doc = await db["platform_accounts"].find_one(
@@ -214,23 +251,36 @@ async def update_account_status(
         # --- SUPABASE PATH (PRIMARY) ---
         try:
             from supabase_db import get_supabase
+
             client = get_supabase()
             if client:
                 # Update is_active based on status
                 is_active = status == "active"
                 update_data = {
                     "is_active": is_active,
-                    "updated_at": datetime.now(timezone.utc).isoformat()
+                    "updated_at": datetime.now(timezone.utc).isoformat(),
                 }
 
                 # Also update metadata status
-                current_conn = client.table("platform_connections").select("metadata").eq("id", account_id).eq("user_id", user_id).execute()
+                current_conn = (
+                    client.table("platform_connections")
+                    .select("metadata")
+                    .eq("id", account_id)
+                    .eq("user_id", user_id)
+                    .execute()
+                )
                 if current_conn.data:
                     metadata = current_conn.data[0].get("metadata", {})
                     metadata["status"] = status
                     update_data["metadata"] = metadata
 
-                result = client.table("platform_connections").update(update_data).eq("id", account_id).eq("user_id", user_id).execute()
+                result = (
+                    client.table("platform_connections")
+                    .update(update_data)
+                    .eq("id", account_id)
+                    .eq("user_id", user_id)
+                    .execute()
+                )
 
                 if result.data and len(result.data) > 0:
                     conn = result.data[0]
@@ -246,7 +296,9 @@ async def update_account_status(
                         "last_used": metadata.get("last_used"),
                     }
                     updated_account = PlatformAccount(**account_data)
-                    logger.info(f"Updated platform account status in Supabase: {account_id} to {status}")
+                    logger.info(
+                        f"Updated platform account status in Supabase: {account_id} to {status}"
+                    )
 
                     # PARALLEL WRITE: Also update in MongoDB
                     if PARALLEL_WRITE:
@@ -255,9 +307,13 @@ async def update_account_status(
                                 {"id": account_id, "user_id": user_id},
                                 {"$set": {"status": status}},
                             )
-                            logger.info(f"✅ Parallel write to MongoDB successful for account status update: {account_id}")
+                            logger.info(
+                                f"✅ Parallel write to MongoDB successful for account status update: {account_id}"
+                            )
                         except Exception as e:
-                            logger.warning(f"⚠️  Parallel MongoDB write failed for account status update {account_id}: {e}")
+                            logger.warning(
+                                f"⚠️  Parallel MongoDB write failed for account status update {account_id}: {e}"
+                            )
 
                     return updated_account
                 else:
@@ -266,7 +322,9 @@ async def update_account_status(
             raise
         except Exception as e:
             logger.error(f"Account status update failed (Supabase): {e}")
-            raise HTTPException(status_code=500, detail="Failed to update account status")
+            raise HTTPException(
+                status_code=500, detail="Failed to update account status"
+            )
     else:
         # --- MONGODB PATH (FALLBACK) ---
         account = await db["platform_accounts"].find_one(
@@ -302,17 +360,26 @@ async def delete_platform_account(
         # --- SUPABASE PATH (PRIMARY) ---
         try:
             from supabase_db import get_supabase
+
             client = get_supabase()
             if client:
                 # Soft delete by setting is_active=false
                 update_data = {
                     "is_active": False,
-                    "updated_at": datetime.now(timezone.utc).isoformat()
+                    "updated_at": datetime.now(timezone.utc).isoformat(),
                 }
-                result = client.table("platform_connections").update(update_data).eq("id", account_id).eq("user_id", user_id).execute()
+                result = (
+                    client.table("platform_connections")
+                    .update(update_data)
+                    .eq("id", account_id)
+                    .eq("user_id", user_id)
+                    .execute()
+                )
 
                 if result.data and len(result.data) > 0:
-                    logger.info(f"Soft-deleted platform account in Supabase: {account_id}")
+                    logger.info(
+                        f"Soft-deleted platform account in Supabase: {account_id}"
+                    )
 
                     # PARALLEL WRITE: Also soft-delete in MongoDB
                     if PARALLEL_WRITE:
@@ -321,9 +388,13 @@ async def delete_platform_account(
                                 {"id": account_id, "user_id": user_id},
                                 {"$set": {"status": "inactive"}},
                             )
-                            logger.info(f"✅ Parallel write to MongoDB successful for account deletion: {account_id}")
+                            logger.info(
+                                f"✅ Parallel write to MongoDB successful for account deletion: {account_id}"
+                            )
                         except Exception as e:
-                            logger.warning(f"⚠️  Parallel MongoDB write failed for account deletion {account_id}: {e}")
+                            logger.warning(
+                                f"⚠️  Parallel MongoDB write failed for account deletion {account_id}: {e}"
+                            )
 
                     return {"message": "Account deleted successfully"}
                 else:
@@ -534,9 +605,16 @@ async def get_connected_platforms(
         # --- SUPABASE PATH (PRIMARY) ---
         try:
             from supabase_db import get_supabase
+
             client = get_supabase()
             if client:
-                result = client.table("platform_connections").select("*").eq("user_id", user_id).eq("is_active", True).execute()
+                result = (
+                    client.table("platform_connections")
+                    .select("*")
+                    .eq("user_id", user_id)
+                    .eq("is_active", True)
+                    .execute()
+                )
 
                 for conn in result.data:
                     platform_data = {
@@ -546,20 +624,27 @@ async def get_connected_platforms(
                         "connection_id": conn["id"],
                         "platform_user_id": conn.get("platform_user_id"),
                         "last_sync": conn.get("last_sync"),
-                        "status": "active" if conn.get("is_active", True) else "inactive"
+                        "status": (
+                            "active" if conn.get("is_active", True) else "inactive"
+                        ),
                     }
                     platforms.append(platform_data)
 
-                logger.info(f"Fetched {len(platforms)} connected platforms from Supabase for user {user_id}")
+                logger.info(
+                    f"Fetched {len(platforms)} connected platforms from Supabase for user {user_id}"
+                )
         except Exception as e:
             logger.error(f"Failed to fetch connected platforms from Supabase: {e}")
-            raise HTTPException(status_code=500, detail="Failed to fetch connected platforms")
+            raise HTTPException(
+                status_code=500, detail="Failed to fetch connected platforms"
+            )
     else:
         # --- MONGODB PATH (FALLBACK) ---
-        accounts_docs = await db["platform_accounts"].find(
-            {"user_id": user_id, "status": "active"},
-            {"_id": 0}
-        ).to_list(1000)
+        accounts_docs = (
+            await db["platform_accounts"]
+            .find({"user_id": user_id, "status": "active"}, {"_id": 0})
+            .to_list(1000)
+        )
 
         for account in accounts_docs:
             platform_data = {
@@ -569,14 +654,11 @@ async def get_connected_platforms(
                 "connection_id": account["id"],
                 "platform_user_id": account.get("account_name"),
                 "last_sync": account.get("last_used"),
-                "status": account.get("status", "active")
+                "status": account.get("status", "active"),
             }
             platforms.append(platform_data)
 
-    return {
-        "platforms": platforms,
-        "total_connected": len(platforms)
-    }
+    return {"platforms": platforms, "total_connected": len(platforms)}
 
 
 # Connect Platform (OAuth Flow Placeholder)
@@ -593,18 +675,27 @@ async def connect_platform(
         # --- SUPABASE PATH (PRIMARY) ---
         try:
             from supabase_db import get_supabase
+
             client = get_supabase()
             if client:
                 # Check if connection already exists
-                existing = client.table("platform_connections").select("*").eq("user_id", user_id).eq("platform", platform).execute()
+                existing = (
+                    client.table("platform_connections")
+                    .select("*")
+                    .eq("user_id", user_id)
+                    .eq("platform", platform)
+                    .execute()
+                )
 
                 if existing.data:
                     # Update existing connection
                     update_data = {
                         "is_active": True,
-                        "updated_at": datetime.now(timezone.utc).isoformat()
+                        "updated_at": datetime.now(timezone.utc).isoformat(),
                     }
-                    client.table("platform_connections").update(update_data).eq("user_id", user_id).eq("platform", platform).execute()
+                    client.table("platform_connections").update(update_data).eq(
+                        "user_id", user_id
+                    ).eq("platform", platform).execute()
                     connection_id = existing.data[0]["id"]
                 else:
                     # Create new connection
@@ -612,12 +703,18 @@ async def connect_platform(
                         "user_id": user_id,
                         "platform": platform,
                         "is_active": True,
-                        "metadata": {"status": "connecting"}
+                        "metadata": {"status": "connecting"},
                     }
-                    result = client.table("platform_connections").insert(connection_data).execute()
+                    result = (
+                        client.table("platform_connections")
+                        .insert(connection_data)
+                        .execute()
+                    )
                     connection_id = result.data[0]["id"]
 
-                logger.info(f"Platform connection initiated in Supabase: {platform} for user {user_id}")
+                logger.info(
+                    f"Platform connection initiated in Supabase: {platform} for user {user_id}"
+                )
 
                 # PARALLEL WRITE: Also update/create in MongoDB
                 if PARALLEL_WRITE:
@@ -628,23 +725,27 @@ async def connect_platform(
                             "platform": platform,
                             "account_name": f"{platform}_user",
                             "account_email": f"user@{platform}.com",
-                            "status": "active"
+                            "status": "active",
                         }
                         await db["platform_accounts"].update_one(
                             {"user_id": user_id, "platform": platform},
                             {"$set": account_data},
-                            upsert=True
+                            upsert=True,
                         )
-                        logger.info(f"✅ Parallel write to MongoDB successful for platform connect: {platform}")
+                        logger.info(
+                            f"✅ Parallel write to MongoDB successful for platform connect: {platform}"
+                        )
                     except Exception as e:
-                        logger.warning(f"⚠️  Parallel MongoDB write failed for platform connect {platform}: {e}")
+                        logger.warning(
+                            f"⚠️  Parallel MongoDB write failed for platform connect {platform}: {e}"
+                        )
 
                 return {
                     "success": True,
                     "platform": platform,
                     "connection_id": connection_id,
                     "status": "connecting",
-                    "message": f"OAuth flow initiated for {platform}. In production, this would redirect to {platform}'s authorization URL."
+                    "message": f"OAuth flow initiated for {platform}. In production, this would redirect to {platform}'s authorization URL.",
                 }
         except Exception as e:
             logger.error(f"Platform connection failed (Supabase): {e}")
@@ -657,19 +758,19 @@ async def connect_platform(
             "platform": platform,
             "account_name": f"{platform}_user",
             "account_email": f"user@{platform}.com",
-            "status": "active"
+            "status": "active",
         }
         await db["platform_accounts"].update_one(
             {"user_id": user_id, "platform": platform},
             {"$set": account_data},
-            upsert=True
+            upsert=True,
         )
 
         return {
             "success": True,
             "platform": platform,
             "status": "connected",
-            "message": f"Connected to {platform} (MongoDB fallback)"
+            "message": f"Connected to {platform} (MongoDB fallback)",
         }
 
 
@@ -685,17 +786,26 @@ async def disconnect_platform(
         # --- SUPABASE PATH (PRIMARY) ---
         try:
             from supabase_db import get_supabase
+
             client = get_supabase()
             if client:
                 # Soft disconnect by setting is_active=false
                 update_data = {
                     "is_active": False,
-                    "updated_at": datetime.now(timezone.utc).isoformat()
+                    "updated_at": datetime.now(timezone.utc).isoformat(),
                 }
-                result = client.table("platform_connections").update(update_data).eq("user_id", user_id).eq("platform", platform).execute()
+                result = (
+                    client.table("platform_connections")
+                    .update(update_data)
+                    .eq("user_id", user_id)
+                    .eq("platform", platform)
+                    .execute()
+                )
 
                 if result.data and len(result.data) > 0:
-                    logger.info(f"Platform disconnected in Supabase: {platform} for user {user_id}")
+                    logger.info(
+                        f"Platform disconnected in Supabase: {platform} for user {user_id}"
+                    )
 
                     # PARALLEL WRITE: Also disconnect in MongoDB
                     if PARALLEL_WRITE:
@@ -704,23 +814,31 @@ async def disconnect_platform(
                                 {"user_id": user_id, "platform": platform},
                                 {"$set": {"status": "inactive"}},
                             )
-                            logger.info(f"✅ Parallel write to MongoDB successful for platform disconnect: {platform}")
+                            logger.info(
+                                f"✅ Parallel write to MongoDB successful for platform disconnect: {platform}"
+                            )
                         except Exception as e:
-                            logger.warning(f"⚠️  Parallel MongoDB write failed for platform disconnect {platform}: {e}")
+                            logger.warning(
+                                f"⚠️  Parallel MongoDB write failed for platform disconnect {platform}: {e}"
+                            )
 
                     return {
                         "success": True,
                         "platform": platform,
                         "status": "disconnected",
-                        "message": f"Successfully disconnected from {platform}"
+                        "message": f"Successfully disconnected from {platform}",
                     }
                 else:
-                    raise HTTPException(status_code=404, detail=f"No connection found for {platform}")
+                    raise HTTPException(
+                        status_code=404, detail=f"No connection found for {platform}"
+                    )
         except HTTPException:
             raise
         except Exception as e:
             logger.error(f"Platform disconnect failed (Supabase): {e}")
-            raise HTTPException(status_code=500, detail=f"Failed to disconnect {platform}")
+            raise HTTPException(
+                status_code=500, detail=f"Failed to disconnect {platform}"
+            )
     else:
         # --- MONGODB PATH (FALLBACK) ---
         result = await db["platform_accounts"].update_one(
@@ -729,13 +847,15 @@ async def disconnect_platform(
         )
 
         if result.matched_count == 0:
-            raise HTTPException(status_code=404, detail=f"No connection found for {platform}")
+            raise HTTPException(
+                status_code=404, detail=f"No connection found for {platform}"
+            )
 
         return {
             "success": True,
             "platform": platform,
             "status": "disconnected",
-            "message": f"Successfully disconnected from {platform}"
+            "message": f"Successfully disconnected from {platform}",
         }
 
 
@@ -751,17 +871,26 @@ async def sync_platform_data(
         # --- SUPABASE PATH (PRIMARY) ---
         try:
             from supabase_db import get_supabase
+
             client = get_supabase()
             if client:
                 # Update last_sync timestamp
                 update_data = {
                     "last_sync": datetime.now(timezone.utc).isoformat(),
-                    "updated_at": datetime.now(timezone.utc).isoformat()
+                    "updated_at": datetime.now(timezone.utc).isoformat(),
                 }
-                result = client.table("platform_connections").update(update_data).eq("user_id", user_id).eq("platform", platform).execute()
+                result = (
+                    client.table("platform_connections")
+                    .update(update_data)
+                    .eq("user_id", user_id)
+                    .eq("platform", platform)
+                    .execute()
+                )
 
                 if result.data and len(result.data) > 0:
-                    logger.info(f"Platform sync initiated in Supabase: {platform} for user {user_id}")
+                    logger.info(
+                        f"Platform sync initiated in Supabase: {platform} for user {user_id}"
+                    )
 
                     # PARALLEL WRITE: Also update in MongoDB
                     if PARALLEL_WRITE:
@@ -770,19 +899,25 @@ async def sync_platform_data(
                                 {"user_id": user_id, "platform": platform},
                                 {"$set": {"last_used": datetime.now(timezone.utc)}},
                             )
-                            logger.info(f"✅ Parallel write to MongoDB successful for platform sync: {platform}")
+                            logger.info(
+                                f"✅ Parallel write to MongoDB successful for platform sync: {platform}"
+                            )
                         except Exception as e:
-                            logger.warning(f"⚠️  Parallel MongoDB write failed for platform sync {platform}: {e}")
+                            logger.warning(
+                                f"⚠️  Parallel MongoDB write failed for platform sync {platform}: {e}"
+                            )
 
                     return {
                         "success": True,
                         "platform": platform,
                         "status": "syncing",
                         "last_sync": update_data["last_sync"],
-                        "message": f"Sync initiated for {platform}. In production, this would trigger data synchronization."
+                        "message": f"Sync initiated for {platform}. In production, this would trigger data synchronization.",
                     }
                 else:
-                    raise HTTPException(status_code=404, detail=f"No connection found for {platform}")
+                    raise HTTPException(
+                        status_code=404, detail=f"No connection found for {platform}"
+                    )
         except HTTPException:
             raise
         except Exception as e:
@@ -796,11 +931,13 @@ async def sync_platform_data(
         )
 
         if result.matched_count == 0:
-            raise HTTPException(status_code=404, detail=f"No connection found for {platform}")
+            raise HTTPException(
+                status_code=404, detail=f"No connection found for {platform}"
+            )
 
         return {
             "success": True,
             "platform": platform,
             "status": "synced",
-            "message": f"Sync completed for {platform} (MongoDB fallback)"
+            "message": f"Sync completed for {platform} (MongoDB fallback)",
         }

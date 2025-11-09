@@ -4,8 +4,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from models import User
 from passlib.context import CryptContext
 from pydantic import BaseModel, EmailStr
-from routes.dependencies import get_db
 from services.auth import create_token
+
+from routes.dependencies import get_db
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 

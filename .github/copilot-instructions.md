@@ -4,12 +4,12 @@
 
 **Multi-service monorepo** with two primary backend implementations and shared frontend:
 
-- `app/backend/` — Production FastAPI backend (Motor async MongoDB + Supabase PostgreSQL dual-database)
+- `app/backend/` — Production FastAPI backend (**Supabase PostgreSQL primary** + MongoDB fallback for legacy support)
 - `app/frontend/` — React frontend (CRA + CRACO, Tailwind, Radix UI/shadcn)
 - `CrossPostMe/` — Alternative FastAPI backend (MongoDB-only, legacy/experimental)
 - `Android/`, `IOS/` — Mobile app scaffolding (not yet implemented)
 
-**Critical database migration in progress**: Backend migrating from MongoDB-only to Supabase-primary with MongoDB fallback. Feature flags control this: `USE_SUPABASE=true`, `PARALLEL_WRITE=true`.
+**✅ Database Migration Complete**: Backend now uses **Supabase as the primary database** with MongoDB as fallback. Feature flags: `USE_SUPABASE=true` (default), `PARALLEL_WRITE=true` (keeps MongoDB in sync during transition). All 45+ endpoints migrated and production-ready.
 
 ## Essential Development Patterns
 
@@ -17,36 +17,68 @@
 
 All route modules must:
 1. Export `router = APIRouter(prefix="/api/...", tags=["..."])`
-2. Be included in `server.py` via `app.include_router(module.router)`
-3. Use dual-database pattern when applicable (see ads.py example):
+2. Be included in `server.py` via `app.include_router(module.router)` (after `startup_event`)
+3. **Use Supabase-first with MongoDB fallback** (see `ads.py` example):
 
 ```python
-# Feature flags for Supabase migration
+# Feature flags for Supabase (both default to "true")
 USE_SUPABASE = os.getenv("USE_SUPABASE", "true").lower() in ("true", "1", "yes")
 PARALLEL_WRITE = os.getenv("PARALLEL_WRITE", "true").lower() in ("true", "1", "yes")
 
-# Supabase-first with MongoDB fallback
+# ✅ SUPABASE PRIMARY - MongoDB as fallback
 if USE_SUPABASE:
-    result = await supabase_db.get_ads(user_id)
+    result = await supabase_db.get_ads(user_id)  # Primary read
     if PARALLEL_WRITE:
-        await db.ads.insert_one(...)  # Keep MongoDB in sync
+        await db.ads.insert_one(...)  # Keep MongoDB in sync during transition
 else:
+    # Legacy fallback path (if USE_SUPABASE=false)
     result = await db.ads.find(...).to_list(1000)
 ```
 
+### Authentication Patterns
+
+**Protected routes** require authentication via FastAPI dependency injection:
+```python
+from auth import get_current_user
+
+@router.post("/")
+async def create_resource(
+    data: ResourceCreate,
+    current_user: dict = Depends(get_current_user)  # Enforces JWT auth
+) -> Resource:
+    # current_user contains {"user_id": "...", "email": "...", etc.}
+    pass
+```
+
+**Optional auth** for public endpoints with user-specific features:
+```python
+from auth import get_optional_current_user
+
+@router.get("/")
+async def list_resources(
+    current_user: dict | None = Depends(get_optional_current_user)
+):
+    # Returns None if no auth header, otherwise validates and returns user
+    user_id = current_user["user_id"] if current_user else None
+```
+
+**Admin-only routes** use `get_current_user_with_fallback` which checks `is_admin` flag
+
 ### Database Access
 
-**MongoDB** (Motor async client):
+**Supabase** (PostgreSQL - **PRIMARY DATABASE**):
+- Import from `supabase_db.py`: `from supabase_db import db as supabase_db`
+- Wrapper methods handle common operations (CRUD, analytics)
+- RLS policies enforced at database level
+- All 45+ endpoints migrated and production-ready
+
+**MongoDB** (Motor async client - **FALLBACK/LEGACY**):
 - Singleton client in `server.py` attached to `app.state.db`
 - Access via `db = get_typed_db()` from `db.py`
 - DateTime serialization: Convert to ISO strings before insert, deserialize on read
 - Pagination: `.to_list(1000)` then map to Pydantic models
-
-**Supabase** (PostgreSQL):
-- Import from `supabase_db.py`: `from supabase_db import db as supabase_db`
-- Wrapper methods handle common operations (CRUD, analytics)
-- RLS policies enforced at database level
-- See `MIGRATION_STATUS.md` for current migration status
+- Used for parallel writes during transition (`PARALLEL_WRITE=true`)
+- See `MIGRATION_STATUS.md` for migration completion details
 
 ### Secrets Management
 
@@ -55,10 +87,12 @@ else:
 - Master key in `secrets_vault/master.key` (NEVER commit)
 - Usage: `from vault import get_secret; api_key = get_secret('openai_api_key')`
 - Graceful fallback to environment variables if vault unavailable
+- Pattern: Always try vault first, catch exceptions, fall back to `os.getenv()`
 
 **Environment variables** (.env files):
-- Backend: `MONGO_URL`, `DB_NAME`, `CORS_ORIGINS`, `SECRET_KEY`, `JWT_SECRET_KEY`, `CREDENTIAL_ENCRYPTION_KEY`
+- Backend: `MONGO_URL`, `DB_NAME`, `CORS_ORIGINS`, `SECRET_KEY`, `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`
 - Frontend: `REACT_APP_API_URL`
+- Migration flags: `USE_SUPABASE` (default: true), `PARALLEL_WRITE` (default: true)
 - See `app/backend/ENVIRONMENT_VARS.md` for complete list
 
 ### Frontend Architecture
@@ -89,6 +123,14 @@ yarn start
 # Full stack via Docker
 docker-compose up --build
 ```
+
+### Database Initialization
+
+Backend validates MongoDB connection on startup with **exponential backoff retry logic**:
+- Default: 5 attempts with 3s base delay
+- Configure via env vars: `MONGO_STARTUP_MAX_RETRIES`, `MONGO_STARTUP_RETRY_DELAY_SECONDS`
+- Fails fast if exhausted to surface issues in production logs
+- After validation, runs `initialize_auth_indexes()` to create DB indexes
 
 ### Testing
 
@@ -136,6 +178,7 @@ docker-compose up --build
 | File | Purpose |
 |------|---------|
 | `app/backend/server.py` | App entry, router mounting, DB lifecycle, CORS |
+| `app/backend/auth.py` | JWT auth, password hashing, user dependencies |
 | `app/backend/routes/ads.py` | Dual-database pattern example |
 | `app/backend/db.py` | MongoDB client with TLS config |
 | `app/backend/supabase_db.py` | Supabase wrapper methods |

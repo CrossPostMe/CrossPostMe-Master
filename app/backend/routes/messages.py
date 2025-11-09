@@ -9,10 +9,9 @@ import re
 import uuid
 from datetime import datetime, timedelta
 
-from fastapi import APIRouter, Depends, HTTPException, Query
-
 from auth import get_current_user
 from db import get_typed_db
+from fastapi import APIRouter, Depends, HTTPException, Query
 from models import (
     IncomingMessage,
     IncomingMessageCreate,
@@ -224,6 +223,7 @@ async def create_message(
             # --- SUPABASE PATH (PRIMARY) ---
             try:
                 from supabase_db import get_supabase
+
                 client = get_supabase()
                 if client:
                     # Log message to business_intelligence table
@@ -237,9 +237,13 @@ async def create_message(
                             "message_type": message.message_type,
                             "ad_id": message_data.get("ad_id"),
                             "content_hash": content_hash,
-                            "message_text": message.message_text[:500] if message.message_text else None,  # Truncate for storage
-                            "is_spam": is_spam
-                        }
+                            "message_text": (
+                                message.message_text[:500]
+                                if message.message_text
+                                else None
+                            ),  # Truncate for storage
+                            "is_spam": is_spam,
+                        },
                     }
                     client.table("business_intelligence").insert(bi_data).execute()
                     logger.info(f"Message logged to Supabase BI: {message_data['id']}")
@@ -248,9 +252,13 @@ async def create_message(
                     if PARALLEL_WRITE:
                         try:
                             result = await db.messages.insert_one(message_data)
-                            logger.info(f"✅ Parallel write to MongoDB successful for message: {message_data['id']}")
+                            logger.info(
+                                f"✅ Parallel write to MongoDB successful for message: {message_data['id']}"
+                            )
                         except Exception as e:
-                            logger.warning(f"⚠️  Parallel MongoDB write failed for message {message_data['id']}: {e}")
+                            logger.warning(
+                                f"⚠️  Parallel MongoDB write failed for message {message_data['id']}: {e}"
+                            )
             except Exception as e:
                 logger.error(f"Failed to log message to Supabase: {e}")
                 # Continue with MongoDB fallback

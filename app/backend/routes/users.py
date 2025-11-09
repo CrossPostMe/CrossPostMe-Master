@@ -9,11 +9,10 @@ import os
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
+from auth import get_current_user_with_fallback, get_password_hash
+from db import get_typed_db
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, EmailStr
-
-from auth import User, get_current_user_with_fallback, get_password_hash
-from db import get_typed_db
 from supabase_db import db as supabase_db
 
 logger = logging.getLogger(__name__)
@@ -28,8 +27,10 @@ db = get_typed_db()
 
 # --- Request/Response Models ---
 
+
 class UserUpdate(BaseModel):
     """User update request model."""
+
     email: Optional[EmailStr] = None
     full_name: Optional[str] = None
     phone: Optional[str] = None
@@ -39,6 +40,7 @@ class UserUpdate(BaseModel):
 
 class UserResponse(BaseModel):
     """Full user response with all fields."""
+
     id: str
     username: str
     email: str
@@ -54,10 +56,12 @@ class UserResponse(BaseModel):
 
 # --- Helper Functions ---
 
+
 def _get_user_from_supabase(user_id: str) -> Optional[Dict[str, Any]]:
     """Get user from Supabase by ID."""
     try:
         from supabase_db import get_supabase
+
         client = get_supabase()
         if client:
             result = client.table("users").select("*").eq("id", user_id).execute()
@@ -68,7 +72,9 @@ def _get_user_from_supabase(user_id: str) -> Optional[Dict[str, Any]]:
     return None
 
 
-def _update_user_in_supabase(user_id: str, update_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+def _update_user_in_supabase(
+    user_id: str, update_data: Dict[str, Any]
+) -> Optional[Dict[str, Any]]:
     """Update user in Supabase."""
     try:
         updated = supabase_db.update_user(user_id, update_data)
@@ -83,7 +89,7 @@ def _delete_user_from_supabase(user_id: str) -> bool:
     try:
         update_data = {
             "is_active": False,
-            "updated_at": datetime.now(timezone.utc).isoformat()
+            "updated_at": datetime.now(timezone.utc).isoformat(),
         }
         supabase_db.update_user(user_id, update_data)
         return True
@@ -94,10 +100,10 @@ def _delete_user_from_supabase(user_id: str) -> bool:
 
 # --- Routes ---
 
+
 @router.get("/{user_id}", response_model=UserResponse)
 async def get_user_by_id(
-    user_id: str,
-    current_user=Depends(get_current_user_with_fallback)
+    user_id: str, current_user=Depends(get_current_user_with_fallback)
 ):
     """Get user by ID.
 
@@ -111,7 +117,7 @@ async def get_user_by_id(
     if user_id != current_user_id and not is_admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to view this user"
+            detail="Not authorized to view this user",
         )
 
     user_doc = None
@@ -123,8 +129,7 @@ async def get_user_by_id(
         if not user_doc:
             logger.warning(f"User not found in Supabase: {user_id}")
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="User not found"
+                status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
             )
     else:
         # --- MONGODB PATH (FALLBACK) ---
@@ -133,8 +138,7 @@ async def get_user_by_id(
         if not user_doc:
             logger.warning(f"User not found in MongoDB: {user_id}")
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="User not found"
+                status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
             )
 
     # Remove password hash from response
@@ -149,7 +153,7 @@ async def get_user_by_id(
 async def update_user(
     user_id: str,
     user_update: UserUpdate,
-    current_user=Depends(get_current_user_with_fallback)
+    current_user=Depends(get_current_user_with_fallback),
 ):
     """Update user information.
 
@@ -163,13 +167,11 @@ async def update_user(
     if user_id != current_user_id and not is_admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to update this user"
+            detail="Not authorized to update this user",
         )
 
     # Build update dictionary (only include provided fields)
-    update_data = {
-        "updated_at": datetime.now(timezone.utc).isoformat()
-    }
+    update_data = {"updated_at": datetime.now(timezone.utc).isoformat()}
 
     if user_update.email is not None:
         update_data["email"] = user_update.email
@@ -179,7 +181,9 @@ async def update_user(
         update_data["phone"] = user_update.phone
     if user_update.password is not None:
         update_data["password_hash"] = get_password_hash(user_update.password)
-        update_data["hashed_password"] = update_data["password_hash"]  # MongoDB compatibility
+        update_data["hashed_password"] = update_data[
+            "password_hash"
+        ]  # MongoDB compatibility
     if user_update.is_active is not None and is_admin:
         # Only admins can change active status
         update_data["is_active"] = user_update.is_active
@@ -193,8 +197,7 @@ async def update_user(
 
             if not updated_user:
                 raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail="User not found"
+                    status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
                 )
 
             logger.info(f"User updated in Supabase: {user_id}")
@@ -202,13 +205,14 @@ async def update_user(
             # PARALLEL WRITE: Also update in MongoDB
             if PARALLEL_WRITE:
                 try:
-                    await db.users.update_one(
-                        {"id": user_id},
-                        {"$set": update_data}
+                    await db.users.update_one({"id": user_id}, {"$set": update_data})
+                    logger.info(
+                        f"✅ Parallel write to MongoDB successful for user: {user_id}"
                     )
-                    logger.info(f"✅ Parallel write to MongoDB successful for user: {user_id}")
                 except Exception as e:
-                    logger.warning(f"⚠️  Parallel MongoDB write failed for user {user_id}: {e}")
+                    logger.warning(
+                        f"⚠️  Parallel MongoDB write failed for user {user_id}: {e}"
+                    )
 
         except HTTPException:
             raise
@@ -216,20 +220,16 @@ async def update_user(
             logger.error(f"User update failed (Supabase): {e}")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to update user"
+                detail="Failed to update user",
             )
     else:
         # --- MONGODB PATH (FALLBACK) ---
         try:
-            result = await db.users.update_one(
-                {"id": user_id},
-                {"$set": update_data}
-            )
+            result = await db.users.update_one({"id": user_id}, {"$set": update_data})
 
             if result.matched_count == 0:
                 raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail="User not found"
+                    status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
                 )
 
             # Fetch updated user
@@ -242,7 +242,7 @@ async def update_user(
             logger.error(f"User update failed (MongoDB): {e}")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to update user"
+                detail="Failed to update user",
             )
 
     # Remove password hash from response
@@ -255,8 +255,7 @@ async def update_user(
 
 @router.delete("/{user_id}")
 async def delete_user(
-    user_id: str,
-    current_user=Depends(get_current_user_with_fallback)
+    user_id: str, current_user=Depends(get_current_user_with_fallback)
 ):
     """Delete user account (soft delete - sets is_active=False).
 
@@ -270,7 +269,7 @@ async def delete_user(
     if user_id != current_user_id and not is_admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to delete this user"
+            detail="Not authorized to delete this user",
         )
 
     if USE_SUPABASE:
@@ -280,8 +279,7 @@ async def delete_user(
 
             if not success:
                 raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail="User not found"
+                    status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
                 )
 
             logger.info(f"User soft-deleted in Supabase: {user_id}")
@@ -291,14 +289,20 @@ async def delete_user(
                 try:
                     await db.users.update_one(
                         {"id": user_id},
-                        {"$set": {
-                            "is_active": False,
-                            "updated_at": datetime.now(timezone.utc).isoformat()
-                        }}
+                        {
+                            "$set": {
+                                "is_active": False,
+                                "updated_at": datetime.now(timezone.utc).isoformat(),
+                            }
+                        },
                     )
-                    logger.info(f"✅ Parallel write to MongoDB successful for user deletion: {user_id}")
+                    logger.info(
+                        f"✅ Parallel write to MongoDB successful for user deletion: {user_id}"
+                    )
                 except Exception as e:
-                    logger.warning(f"⚠️  Parallel MongoDB write failed for user deletion {user_id}: {e}")
+                    logger.warning(
+                        f"⚠️  Parallel MongoDB write failed for user deletion {user_id}: {e}"
+                    )
 
         except HTTPException:
             raise
@@ -306,23 +310,24 @@ async def delete_user(
             logger.error(f"User deletion failed (Supabase): {e}")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to delete user"
+                detail="Failed to delete user",
             )
     else:
         # --- MONGODB PATH (FALLBACK) ---
         try:
             result = await db.users.update_one(
                 {"id": user_id},
-                {"$set": {
-                    "is_active": False,
-                    "updated_at": datetime.now(timezone.utc).isoformat()
-                }}
+                {
+                    "$set": {
+                        "is_active": False,
+                        "updated_at": datetime.now(timezone.utc).isoformat(),
+                    }
+                },
             )
 
             if result.matched_count == 0:
                 raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail="User not found"
+                    status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
                 )
 
             logger.info(f"User soft-deleted in MongoDB: {user_id}")
@@ -333,20 +338,17 @@ async def delete_user(
             logger.error(f"User deletion failed (MongoDB): {e}")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to delete user"
+                detail="Failed to delete user",
             )
 
-    return {
-        "message": "User deleted successfully",
-        "user_id": user_id
-    }
+    return {"message": "User deleted successfully", "user_id": user_id}
 
 
 @router.get("/search/query", response_model=List[UserResponse])
 async def search_users(
     q: Optional[str] = None,
     limit: int = 20,
-    current_user=Depends(get_current_user_with_fallback)
+    current_user=Depends(get_current_user_with_fallback),
 ):
     """Search users by username or email (admin only).
 
@@ -358,8 +360,7 @@ async def search_users(
     is_admin = user_data.is_admin if user_data else False
     if not is_admin:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Admin access required"
+            status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required"
         )
 
     users: list = []
@@ -368,6 +369,7 @@ async def search_users(
         # --- SUPABASE PATH (PRIMARY) ---
         try:
             from supabase_db import get_supabase
+
             client = get_supabase()
             if client:
                 query = client.table("users").select("*").limit(limit)
@@ -385,7 +387,7 @@ async def search_users(
             logger.error(f"User search failed (Supabase): {e}")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Search failed"
+                detail="Search failed",
             )
     else:
         # --- MONGODB PATH (FALLBACK) ---
@@ -395,7 +397,7 @@ async def search_users(
                 query_filter = {
                     "$or": [
                         {"username": {"$regex": q, "$options": "i"}},
-                        {"email": {"$regex": q, "$options": "i"}}
+                        {"email": {"$regex": q, "$options": "i"}},
                     ]
                 }
 
@@ -408,7 +410,7 @@ async def search_users(
             logger.error(f"User search failed (MongoDB): {e}")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Search failed"
+                detail="Search failed",
             )
 
     # Remove sensitive data

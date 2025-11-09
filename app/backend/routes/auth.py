@@ -6,9 +6,6 @@ from datetime import datetime, timedelta, timezone
 
 import jwt
 import pymongo.errors
-from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
-from jwt import PyJWTError as JWTError
-
 from auth import (
     ACCESS_TOKEN_EXPIRE_MINUTES,
     ALGORITHM,
@@ -24,6 +21,8 @@ from auth import (
     verify_password,
 )
 from db import get_typed_db
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from jwt import PyJWTError as JWTError
 from supabase_db import db as supabase_db
 
 # Configure logger for authentication events
@@ -210,10 +209,14 @@ async def register(request: Request, user_data: UserCreate):
                         "supabase_id": user_id,  # Track Supabase ID
                     }
                     await db.users.insert_one(mongo_doc)
-                    logger.info(f"✅ Parallel write to MongoDB successful for user: {user_id}")
+                    logger.info(
+                        f"✅ Parallel write to MongoDB successful for user: {user_id}"
+                    )
                 except Exception as e:
                     # Non-blocking: MongoDB failure doesn't fail the request
-                    logger.warning(f"⚠️  Parallel MongoDB write failed for user {user_id}: {e}")
+                    logger.warning(
+                        f"⚠️  Parallel MongoDB write failed for user {user_id}: {e}"
+                    )
 
             return User(
                 id=created_user["id"],
@@ -327,8 +330,12 @@ async def login(request: Request, login_data: UserLogin, response: Response):
                 )
 
             # Verify password (Supabase stores as password_hash, MongoDB as hashed_password)
-            password_hash = user_doc.get("password_hash") or user_doc.get("hashed_password")
-            if not password_hash or not verify_password(login_data.password, password_hash):
+            password_hash = user_doc.get("password_hash") or user_doc.get(
+                "hashed_password"
+            )
+            if not password_hash or not verify_password(
+                login_data.password, password_hash
+            ):
                 user_hash = _create_user_hash(login_data.username)
                 logger.warning(
                     "Login failed - incorrect password (Supabase) | "
@@ -494,9 +501,12 @@ async def refresh_token(request: Request, response: Response):
             # --- SUPABASE PATH (PRIMARY) ---
             try:
                 from supabase_db import get_supabase
+
                 client = get_supabase()
                 if client:
-                    result = client.table("users").select("*").eq("id", user_id).execute()
+                    result = (
+                        client.table("users").select("*").eq("id", user_id).execute()
+                    )
                     if result.data and len(result.data) > 0:
                         user_doc = result.data[0]
             except Exception as e:
@@ -631,6 +641,7 @@ async def get_current_user_info(
         try:
             # Query Supabase by user ID
             from supabase_db import get_supabase
+
             client = get_supabase()
             if client:
                 result = client.table("users").select("*").eq("id", user_id).execute()

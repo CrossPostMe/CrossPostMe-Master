@@ -2,6 +2,7 @@ import asyncio
 import logging
 import os
 import uuid
+from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List
@@ -25,8 +26,62 @@ print("DEBUG: MONGO_URL at startup:", os.environ.get("MONGO_URL"))
 # Use typed database wrapper
 db = get_typed_db()
 
-# Create the main app without a prefix
-app = FastAPI()
+
+# Lifespan context manager for startup and shutdown
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Handle startup and shutdown events."""
+    from backend.routes.auth import initialize_auth_indexes
+
+    # Startup: Validate DB connectivity and initialize indexes
+    max_attempts = int(os.environ.get("MONGO_STARTUP_MAX_RETRIES", "5"))
+    base_delay = float(os.environ.get("MONGO_STARTUP_RETRY_DELAY_SECONDS", "3"))
+
+    attempt = 0
+    while attempt < max_attempts:
+        attempt += 1
+        try:
+            ok = await db.validate_connection()
+        except Exception as exc:
+            logging.warning(
+                "Attempt %d/%d - unexpected error while validating DB connection: %s",
+                attempt,
+                max_attempts,
+                exc,
+            )
+            ok = False
+
+        if ok:
+            logging.info("MongoDB validated on attempt %d/%d", attempt, max_attempts)
+            break
+
+        delay = base_delay * attempt
+        logging.warning(
+            "MongoDB not reachable (attempt %d/%d). Retrying in %.1fs...",
+            attempt,
+            max_attempts,
+            delay,
+        )
+        await asyncio.sleep(delay)
+
+    else:
+        logging.error(
+            "Failed to validate MongoDB connection after %d attempts. Aborting startup.",
+            max_attempts,
+        )
+        raise RuntimeError("Failed to validate MongoDB connection during startup")
+
+    # Initialize indexes once DB connectivity is confirmed
+    await initialize_auth_indexes()
+
+    yield  # App runs here
+
+    # Shutdown: Close database connection
+    db.close()
+
+
+# Create the main app with lifespan handler
+app = FastAPI(lifespan=lifespan)
 
 # Create a router with the /api prefix
 api_router = APIRouter(prefix="/api")
@@ -157,60 +212,7 @@ app.include_router(platform_oauth.router)
 app.include_router(ai.router)
 app.include_router(diagrams.router)
 
-
-@app.on_event("startup")
-async def startup_event() -> None:
-    """Initialize database indexes and other startup tasks."""
-    from backend.routes.auth import initialize_auth_indexes
-
-    # Validate DB connectivity and retry a few times to survive transient
-    # network / TLS negotiation failures on hosted platforms (Render, etc.).
-    # Environment variables let deploys tune behavior without code changes.
-    max_attempts = int(os.environ.get("MONGO_STARTUP_MAX_RETRIES", "5"))
-    base_delay = float(os.environ.get("MONGO_STARTUP_RETRY_DELAY_SECONDS", "3"))
-
-    attempt = 0
-    while attempt < max_attempts:
-        attempt += 1
-        try:
-            ok = await db.validate_connection()
-        except Exception as exc:  # pragma: no cover - defensive
-            logger.warning(
-                "Attempt %d/%d - unexpected error while validating DB connection: %s",
-                attempt,
-                max_attempts,
-                exc,
-            )
-            ok = False
-
-        if ok:
-            logger.info("MongoDB validated on attempt %d/%d", attempt, max_attempts)
-            break
-
-        # Not connected yet - wait with exponential backoff
-        delay = base_delay * attempt
-        logger.warning(
-            "MongoDB not reachable (attempt %d/%d). Retrying in %.1fs...",
-            attempt,
-            max_attempts,
-            delay,
-        )
-        await asyncio.sleep(delay)
-
-    else:
-        # Exhausted retries - fail fast so that hosting platform shows a clear
-        # crash reason and we can inspect logs (better than silent degraded
-        # behaviour).
-        logger.error(
-            "Failed to validate MongoDB connection after %d attempts. Aborting startup.",
-            max_attempts,
-        )
-        raise RuntimeError("Failed to validate MongoDB connection during startup")
-
-    # Initialize indexes once DB connectivity is confirmed
-    await initialize_auth_indexes()
-
-
+# Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
@@ -225,8 +227,3 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
-
-
-@app.on_event("shutdown")
-async def shutdown_db_client() -> None:
-    db.close()

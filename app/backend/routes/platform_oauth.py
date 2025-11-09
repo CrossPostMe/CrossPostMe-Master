@@ -7,11 +7,10 @@ import os
 from datetime import datetime
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, Field
-
 from auth import get_current_user
 from db import get_db
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel, Field
 from services.platform_oauth_service import PlatformOAuthService
 
 logger = logging.getLogger(__name__)

@@ -1,10 +1,9 @@
-import random
 import os
+import random
 from typing import Any
 
-from fastapi import APIRouter, Depends
-
 from auth import get_current_user
+from fastapi import APIRouter, Depends
 from models import AIAdRequest, AIAdResponse
 
 # Feature flags
@@ -16,7 +15,9 @@ router = APIRouter(prefix="/api/ai", tags=["ai"])
 
 # AI-powered ad generation (mocked)
 @router.post("/generate-ad", response_model=AIAdResponse)
-async def generate_ad(request: AIAdRequest, user_id: str = Depends(get_current_user)) -> AIAdResponse:
+async def generate_ad(
+    request: AIAdRequest, user_id: str = Depends(get_current_user)
+) -> AIAdResponse:
     # Mock AI generation
     product = request.product_name
     price = request.price
@@ -71,6 +72,7 @@ async def generate_ad(request: AIAdRequest, user_id: str = Depends(get_current_u
     if USE_SUPABASE:
         try:
             from supabase_db import get_supabase
+
             client = get_supabase()
             if client:
                 bi_data = {
@@ -79,8 +81,8 @@ async def generate_ad(request: AIAdRequest, user_id: str = Depends(get_current_u
                     "event_data": {
                         "request": request.dict(),
                         "response": response.dict(),
-                        "model": "mock_ai_v1"
-                    }
+                        "model": "mock_ai_v1",
+                    },
                 }
                 client.table("business_intelligence").insert(bi_data).execute()
         except Exception as e:
@@ -92,7 +94,9 @@ async def generate_ad(request: AIAdRequest, user_id: str = Depends(get_current_u
 
 # AI ad optimization suggestions
 @router.post("/optimize-ad")
-async def optimize_ad(title: str, description: str, user_id: str = Depends(get_current_user)) -> dict[str, Any]:
+async def optimize_ad(
+    title: str, description: str, user_id: str = Depends(get_current_user)
+) -> dict[str, Any]:
     suggestions = [
         "Add more specific details about the product condition",
         "Include measurements or dimensions",
@@ -112,6 +116,7 @@ async def optimize_ad(title: str, description: str, user_id: str = Depends(get_c
     if USE_SUPABASE:
         try:
             from supabase_db import get_supabase
+
             client = get_supabase()
             if client:
                 bi_data = {
@@ -121,8 +126,8 @@ async def optimize_ad(title: str, description: str, user_id: str = Depends(get_c
                         "title": title,
                         "description_length": len(description),
                         "score": result["score"],
-                        "suggestions_count": len(result["suggestions"])
-                    }
+                        "suggestions_count": len(result["suggestions"]),
+                    },
                 }
                 client.table("business_intelligence").insert(bi_data).execute()
         except Exception as e:
@@ -133,7 +138,9 @@ async def optimize_ad(title: str, description: str, user_id: str = Depends(get_c
 
 # AI title optimization
 @router.post("/optimize-title")
-async def optimize_title(title: str, category: str = None, user_id: str = Depends(get_current_user)) -> dict[str, Any]:
+async def optimize_title(
+    title: str, category: str = None, user_id: str = Depends(get_current_user)
+) -> dict[str, Any]:
     """Optimize ad title for better performance."""
     # Mock title optimization
     optimized_titles = [
@@ -141,7 +148,7 @@ async def optimize_title(title: str, category: str = None, user_id: str = Depend
         f"Premium {title} - Excellent Condition",
         f"{title} - Must See!",
         f"⭐ {title} - Top Quality",
-        f"💯 {title} - Perfect Condition"
+        f"💯 {title} - Perfect Condition",
     ]
 
     result = {
@@ -149,13 +156,14 @@ async def optimize_title(title: str, category: str = None, user_id: str = Depend
         "optimized_title": random.choice(optimized_titles),
         "improvement_score": random.randint(15, 40),
         "estimated_click_increase": f"{random.randint(20, 50)}%",
-        "reasoning": "Added engaging emoji and power words to increase visibility"
+        "reasoning": "Added engaging emoji and power words to increase visibility",
     }
 
     # Log AI usage to Supabase
     if USE_SUPABASE:
         try:
             from supabase_db import get_supabase
+
             client = get_supabase()
             if client:
                 bi_data = {
@@ -164,8 +172,8 @@ async def optimize_title(title: str, category: str = None, user_id: str = Depend
                     "event_data": {
                         "original_title": title,
                         "category": category,
-                        "improvement_score": result["improvement_score"]
-                    }
+                        "improvement_score": result["improvement_score"],
+                    },
                 }
                 client.table("business_intelligence").insert(bi_data).execute()
         except Exception as e:
@@ -181,7 +189,7 @@ async def suggest_price(
     category: str,
     condition: str = "good",
     market_location: str = None,
-    user_id: str = Depends(get_current_user)
+    user_id: str = Depends(get_current_user),
 ) -> dict[str, Any]:
     """Suggest optimal pricing for a product."""
     # Mock price suggestions based on category
@@ -193,7 +201,9 @@ async def suggest_price(
         "real estate": {"poor": 50000, "good": 150000, "excellent": 300000},
     }
 
-    base_price = base_prices.get(category.lower(), {"poor": 25, "good": 75, "excellent": 150})[condition.lower()]
+    base_price = base_prices.get(
+        category.lower(), {"poor": 25, "good": 75, "excellent": 150}
+    )[condition.lower()]
 
     # Add some randomization
     suggested_price = base_price * random.uniform(0.8, 1.2)
@@ -205,21 +215,22 @@ async def suggest_price(
         "suggested_price": round(suggested_price, 2),
         "price_range": {
             "min": round(suggested_price * 0.8, 2),
-            "max": round(suggested_price * 1.2, 2)
+            "max": round(suggested_price * 1.2, 2),
         },
         "confidence": random.randint(70, 95),
         "market_comparison": f"Based on {random.randint(50, 200)} similar listings",
         "recommendations": [
             "Consider condition when setting final price",
             "Check local market rates",
-            "Price slightly below market for faster sale"
-        ]
+            "Price slightly below market for faster sale",
+        ],
     }
 
     # Log AI usage to Supabase
     if USE_SUPABASE:
         try:
             from supabase_db import get_supabase
+
             client = get_supabase()
             if client:
                 bi_data = {
@@ -230,8 +241,8 @@ async def suggest_price(
                         "category": category,
                         "condition": condition,
                         "suggested_price": result["suggested_price"],
-                        "confidence": result["confidence"]
-                    }
+                        "confidence": result["confidence"],
+                    },
                 }
                 client.table("business_intelligence").insert(bi_data).execute()
         except Exception as e:

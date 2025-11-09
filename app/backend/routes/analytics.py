@@ -10,10 +10,9 @@ import os
 from datetime import datetime, timedelta
 from typing import Any, Dict, List
 
-from fastapi import APIRouter, Depends, HTTPException, Query
-
 from auth import get_current_user
 from db import get_typed_db
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 # Feature flags
 USE_SUPABASE = os.getenv("USE_SUPABASE", "true").lower() in ("true", "1", "yes")
@@ -43,7 +42,7 @@ async def get_dashboard_analytics(
         "platforms_connected": 0,
         "revenue": 0,
         "conversion_rate": 0.0,
-        "period": "30d"
+        "period": "30d",
     }
 
 
@@ -71,16 +70,27 @@ async def get_listing_analytics(
         # --- SUPABASE PATH (PRIMARY) ---
         try:
             from supabase_db import get_supabase
+
             client = get_supabase()
             if client:
                 # Get listings for user
-                listings_result = client.table("listings").select("*").eq("user_id", user_id).execute()
+                listings_result = (
+                    client.table("listings")
+                    .select("*")
+                    .eq("user_id", user_id)
+                    .execute()
+                )
 
                 for listing in listings_result.data:
                     listing_id = listing["id"]
 
                     # Get posted ads for this listing
-                    posted_result = client.table("posted_ads").select("*").eq("ad_id", listing_id).execute()
+                    posted_result = (
+                        client.table("posted_ads")
+                        .select("*")
+                        .eq("ad_id", listing_id)
+                        .execute()
+                    )
 
                     # Get analytics data from posted_ads (simplified)
                     total_views = 0
@@ -92,22 +102,32 @@ async def get_listing_analytics(
                         total_clicks += posted.get("clicks", 0)
                         total_leads += posted.get("leads", 0)
 
-                    analytics.append({
-                        "listing_id": listing_id,
-                        "title": listing.get("title", ""),
-                        "platform": platform or "all",
-                        "views": total_views,
-                        "clicks": total_clicks,
-                        "leads": total_leads,
-                        "conversion_rate": (total_clicks / total_views * 100) if total_views > 0 else 0,
-                        "status": listing.get("status", "draft"),
-                        "created_at": listing.get("created_at"),
-                    })
+                    analytics.append(
+                        {
+                            "listing_id": listing_id,
+                            "title": listing.get("title", ""),
+                            "platform": platform or "all",
+                            "views": total_views,
+                            "clicks": total_clicks,
+                            "leads": total_leads,
+                            "conversion_rate": (
+                                (total_clicks / total_views * 100)
+                                if total_views > 0
+                                else 0
+                            ),
+                            "status": listing.get("status", "draft"),
+                            "created_at": listing.get("created_at"),
+                        }
+                    )
 
-                logger.info(f"Retrieved listing analytics for {len(analytics)} listings from Supabase")
+                logger.info(
+                    f"Retrieved listing analytics for {len(analytics)} listings from Supabase"
+                )
         except Exception as e:
             logger.error(f"Failed to get listing analytics from Supabase: {e}")
-            raise HTTPException(status_code=500, detail="Failed to get listing analytics")
+            raise HTTPException(
+                status_code=500, detail="Failed to get listing analytics"
+            )
     else:
         # --- MONGODB PATH (FALLBACK) ---
         # Get listings from MongoDB
@@ -127,17 +147,21 @@ async def get_listing_analytics(
             total_clicks = sum(pa.get("clicks", 0) for pa in posted_ads)
             total_leads = sum(pa.get("leads", 0) for pa in posted_ads)
 
-            analytics.append({
-                "listing_id": listing_id,
-                "title": listing.get("title", ""),
-                "platform": platform or "all",
-                "views": total_views,
-                "clicks": total_clicks,
-                "leads": total_leads,
-                "conversion_rate": (total_clicks / total_views * 100) if total_views > 0 else 0,
-                "status": listing.get("status", "draft"),
-                "created_at": listing.get("created_at"),
-            })
+            analytics.append(
+                {
+                    "listing_id": listing_id,
+                    "title": listing.get("title", ""),
+                    "platform": platform or "all",
+                    "views": total_views,
+                    "clicks": total_clicks,
+                    "leads": total_leads,
+                    "conversion_rate": (
+                        (total_clicks / total_views * 100) if total_views > 0 else 0
+                    ),
+                    "status": listing.get("status", "draft"),
+                    "created_at": listing.get("created_at"),
+                }
+            )
 
     return analytics
 
@@ -165,6 +189,7 @@ async def get_platform_analytics(
         # --- SUPABASE PATH (PRIMARY) ---
         try:
             from supabase_db import get_supabase
+
             client = get_supabase()
             if client:
                 # Get all posted ads for user and group by platform
@@ -191,39 +216,55 @@ async def get_platform_analytics(
 
                 # Calculate success rates and convert to list
                 for platform, data in platform_data.items():
-                    data["success_rate"] = (data["total_leads"] / data["total_posts"] * 100) if data["total_posts"] > 0 else 0
+                    data["success_rate"] = (
+                        (data["total_leads"] / data["total_posts"] * 100)
+                        if data["total_posts"] > 0
+                        else 0
+                    )
                     platform_stats.append(data)
 
-                logger.info(f"Retrieved platform analytics for {len(platform_stats)} platforms from Supabase")
+                logger.info(
+                    f"Retrieved platform analytics for {len(platform_stats)} platforms from Supabase"
+                )
         except Exception as e:
             logger.error(f"Failed to get platform analytics from Supabase: {e}")
-            raise HTTPException(status_code=500, detail="Failed to get platform analytics")
+            raise HTTPException(
+                status_code=500, detail="Failed to get platform analytics"
+            )
     else:
         # --- MONGODB PATH (FALLBACK) ---
         # Aggregate posted ads by platform
         pipeline = [
             {"$match": {"user_id": user_id}},
-            {"$group": {
-                "_id": "$platform",
-                "total_posts": {"$sum": 1},
-                "total_views": {"$sum": "$views"},
-                "total_clicks": {"$sum": "$clicks"},
-                "total_leads": {"$sum": "$leads"},
-            }},
-            {"$sort": {"total_posts": -1}}
+            {
+                "$group": {
+                    "_id": "$platform",
+                    "total_posts": {"$sum": 1},
+                    "total_views": {"$sum": "$views"},
+                    "total_clicks": {"$sum": "$clicks"},
+                    "total_leads": {"$sum": "$leads"},
+                }
+            },
+            {"$sort": {"total_posts": -1}},
         ]
 
         results = await db["posted_ads"].aggregate(pipeline).to_list(20)
 
         for result in results:
-            platform_stats.append({
-                "platform": result["_id"],
-                "total_posts": result["total_posts"],
-                "total_views": result.get("total_views", 0),
-                "total_clicks": result.get("total_clicks", 0),
-                "total_leads": result.get("total_leads", 0),
-                "success_rate": (result.get("total_leads", 0) / result["total_posts"] * 100) if result["total_posts"] > 0 else 0,
-            })
+            platform_stats.append(
+                {
+                    "platform": result["_id"],
+                    "total_posts": result["total_posts"],
+                    "total_views": result.get("total_views", 0),
+                    "total_clicks": result.get("total_clicks", 0),
+                    "total_leads": result.get("total_leads", 0),
+                    "success_rate": (
+                        (result.get("total_leads", 0) / result["total_posts"] * 100)
+                        if result["total_posts"] > 0
+                        else 0
+                    ),
+                }
+            )
 
     return platform_stats
 
@@ -252,7 +293,7 @@ async def get_revenue_analytics(
         "refunds": 0.0,
         "currency": "USD",
         "period": f"{start_date} to {end_date}",
-        "note": "Revenue tracking requires additional database schema for Stripe data"
+        "note": "Revenue tracking requires additional database schema for Stripe data",
     }
 
 
@@ -273,11 +314,11 @@ async def get_performance_metrics(
             "listings_created": 0,
             "listings_posted": 0,
             "leads_generated": 0,
-            "conversions": 0
+            "conversions": 0,
         },
         "trends": {
             "listings_growth": 0.0,
             "engagement_growth": 0.0,
-            "revenue_growth": 0.0
-        }
+            "revenue_growth": 0.0,
+        },
     }

@@ -17,8 +17,9 @@ from models import (
     PostedAd,
     PostedAdCreate,
 )
-from routes.dependencies import get_current_user, get_db, rate_limit_dependency
 from services.diagram import generate_ad_mermaid
+
+from routes.dependencies import get_current_user, get_db, rate_limit_dependency
 
 router = APIRouter(prefix="/api/ads", tags=["ads"])
 

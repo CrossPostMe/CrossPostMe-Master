@@ -9,9 +9,9 @@ from typing import Dict, List, Optional
 
 from auth import create_access_token, get_password_hash
 from db import get_typed_db
-from supabase_db import db as supabase_db
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, EmailStr, Field
+from supabase_db import db as supabase_db
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/auth", tags=["auth-enhanced"])
@@ -90,12 +90,12 @@ async def enhanced_signup(request: EnhancedSignupRequest) -> Dict:
         if existing_user:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Email already registered"
+                detail="Email already registered",
             )
 
         # Create user account
         # Use email as username for simplicity (make unique if needed)
-        base_username = request.email.split('@')[0]
+        base_username = request.email.split("@")[0]
         username = base_username
 
         # Check if username exists and make it unique
@@ -113,14 +113,14 @@ async def enhanced_signup(request: EnhancedSignupRequest) -> Dict:
         try:
             # Ensure password is not too long for bcrypt (72 byte limit)
             password_to_hash = request.password
-            if len(password_to_hash.encode('utf-8')) > 72:
+            if len(password_to_hash.encode("utf-8")) > 72:
                 password_to_hash = password_to_hash[:72]
             password_hash = get_password_hash(password_to_hash)
         except Exception as e:
             logger.error(f"Password hashing failed: {e}")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Password processing failed"
+                detail="Password processing failed",
             )
 
         user_data = {
@@ -135,7 +135,6 @@ async def enhanced_signup(request: EnhancedSignupRequest) -> Dict:
             "trial_active": True,
             "trial_type": request.trialType or "free",
             "trial_start_date": datetime.utcnow().isoformat(),
-
             # Business intelligence data
             "business_profile": {
                 "business_name": request.businessName,
@@ -143,7 +142,6 @@ async def enhanced_signup(request: EnhancedSignupRequest) -> Dict:
                 "industry": request.industry,
                 "team_size": request.teamSize,
             },
-
             # Marketplace intelligence
             "marketplace_data": {
                 "current_marketplaces": request.currentMarketplaces,
@@ -153,20 +151,17 @@ async def enhanced_signup(request: EnhancedSignupRequest) -> Dict:
                 "biggest_challenge": request.biggestChallenge,
                 "current_tools": request.currentTools,
             },
-
             # Goals & expectations (for upselling)
             "goals": {
                 "growth_goal": request.growthGoal,
                 "listings_goal": request.listingsGoal,
             },
-
             # Marketing & permissions
             "preferences": {
                 "marketing_emails": request.marketingEmails,
                 "data_sharing": request.dataSharing,
                 "beta_tester": request.betaTester,
             },
-
             # Attribution & source tracking
             "attribution": {
                 "source": request.source,
@@ -175,7 +170,6 @@ async def enhanced_signup(request: EnhancedSignupRequest) -> Dict:
                 "utm_campaign": request.utmCampaign,
                 "signup_date": request.signupDate or datetime.utcnow().isoformat(),
             },
-
             # Engagement tracking (for ML/analytics)
             "engagement": {
                 "signup_completed": True,
@@ -203,7 +197,7 @@ async def enhanced_signup(request: EnhancedSignupRequest) -> Dict:
                 "metadata": {
                     "engagement": user_data["engagement"],
                     "preferences": user_data["preferences"],
-                }
+                },
             }
 
             # Create user in Supabase
@@ -248,7 +242,7 @@ async def enhanced_signup(request: EnhancedSignupRequest) -> Dict:
                     "marketplaces": request.currentMarketplaces,
                     "biggest_challenge": request.biggestChallenge,
                     "trial_type": request.trialType,
-                }
+                },
             )
 
             logger.info(f"✅ User created in Supabase: {user_id}")
@@ -259,20 +253,22 @@ async def enhanced_signup(request: EnhancedSignupRequest) -> Dict:
             user_id = str(result.inserted_id)
 
             # Log business intelligence event
-            db["business_intelligence"].insert_one({
-                "user_id": user_id,
-                "event_type": "enhanced_signup",
-                "timestamp": datetime.utcnow().isoformat(),
-                "data": {
-                    "business_type": request.businessType,
-                    "industry": request.industry,
-                    "monthly_revenue": request.monthlyRevenue,
-                    "monthly_listings": request.monthlyListings,
-                    "marketplaces": request.currentMarketplaces,
-                    "biggest_challenge": request.biggestChallenge,
-                    "trial_type": request.trialType,
+            db["business_intelligence"].insert_one(
+                {
+                    "user_id": user_id,
+                    "event_type": "enhanced_signup",
+                    "timestamp": datetime.utcnow().isoformat(),
+                    "data": {
+                        "business_type": request.businessType,
+                        "industry": request.industry,
+                        "monthly_revenue": request.monthlyRevenue,
+                        "monthly_listings": request.monthlyListings,
+                        "marketplaces": request.currentMarketplaces,
+                        "biggest_challenge": request.biggestChallenge,
+                        "trial_type": request.trialType,
+                    },
                 }
-            })
+            )
 
         # PARALLEL WRITE: Also write to MongoDB during migration
         if USE_SUPABASE and PARALLEL_WRITE:
@@ -291,15 +287,17 @@ async def enhanced_signup(request: EnhancedSignupRequest) -> Dict:
             data={
                 "sub": username,  # Use username for token (consistent with auth system)
                 "user_id": user_id,
-                "token_type": "access"
+                "token_type": "access",
             }
         )
 
-        logger.info(f"Enhanced signup completed for user: {user_id} | "
-                   f"Username: {username} | "
-                   f"Industry: {request.industry} | "
-                   f"Revenue: {request.monthlyRevenue} | "
-                   f"Listings: {request.monthlyListings}")
+        logger.info(
+            f"Enhanced signup completed for user: {user_id} | "
+            f"Username: {username} | "
+            f"Industry: {request.industry} | "
+            f"Revenue: {request.monthlyRevenue} | "
+            f"Listings: {request.monthlyListings}"
+        )
 
         # Return success with token and username
         return {
@@ -310,7 +308,7 @@ async def enhanced_signup(request: EnhancedSignupRequest) -> Dict:
             "email": request.email,
             "trial_active": True,
             "trial_type": request.trialType,
-            "message": "Account created successfully! Your free trial has started."
+            "message": "Account created successfully! Your free trial has started.",
         }
 
     except HTTPException:
@@ -319,7 +317,7 @@ async def enhanced_signup(request: EnhancedSignupRequest) -> Dict:
         logger.error(f"Enhanced signup error: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Signup failed. Please try again."
+            detail="Signup failed. Please try again.",
         )
 
 
@@ -335,44 +333,55 @@ async def get_business_insights() -> Dict:
         total_users = db["users"].count_documents({})
 
         # Industry breakdown
-        industries = db["users"].aggregate([
-            {"$match": {"business_profile.industry": {"$ne": None}}},
-            {"$group": {
-                "_id": "$business_profile.industry",
-                "count": {"$sum": 1}
-            }},
-            {"$sort": {"count": -1}}
-        ])
+        industries = db["users"].aggregate(
+            [
+                {"$match": {"business_profile.industry": {"$ne": None}}},
+                {"$group": {"_id": "$business_profile.industry", "count": {"$sum": 1}}},
+                {"$sort": {"count": -1}},
+            ]
+        )
 
         # Revenue breakdown
-        revenue_ranges = db["users"].aggregate([
-            {"$match": {"marketplace_data.monthly_revenue": {"$ne": None}}},
-            {"$group": {
-                "_id": "$marketplace_data.monthly_revenue",
-                "count": {"$sum": 1}
-            }},
-            {"$sort": {"count": -1}}
-        ])
+        revenue_ranges = db["users"].aggregate(
+            [
+                {"$match": {"marketplace_data.monthly_revenue": {"$ne": None}}},
+                {
+                    "$group": {
+                        "_id": "$marketplace_data.monthly_revenue",
+                        "count": {"$sum": 1},
+                    }
+                },
+                {"$sort": {"count": -1}},
+            ]
+        )
 
         # Most used marketplaces
-        marketplace_usage = db["users"].aggregate([
-            {"$unwind": "$marketplace_data.current_marketplaces"},
-            {"$group": {
-                "_id": "$marketplace_data.current_marketplaces",
-                "count": {"$sum": 1}
-            }},
-            {"$sort": {"count": -1}}
-        ])
+        marketplace_usage = db["users"].aggregate(
+            [
+                {"$unwind": "$marketplace_data.current_marketplaces"},
+                {
+                    "$group": {
+                        "_id": "$marketplace_data.current_marketplaces",
+                        "count": {"$sum": 1},
+                    }
+                },
+                {"$sort": {"count": -1}},
+            ]
+        )
 
         # Top challenges (product development insights)
-        challenges = db["users"].aggregate([
-            {"$match": {"marketplace_data.biggest_challenge": {"$ne": None}}},
-            {"$group": {
-                "_id": "$marketplace_data.biggest_challenge",
-                "count": {"$sum": 1}
-            }},
-            {"$sort": {"count": -1}}
-        ])
+        challenges = db["users"].aggregate(
+            [
+                {"$match": {"marketplace_data.biggest_challenge": {"$ne": None}}},
+                {
+                    "$group": {
+                        "_id": "$marketplace_data.biggest_challenge",
+                        "count": {"$sum": 1},
+                    }
+                },
+                {"$sort": {"count": -1}},
+            ]
+        )
 
         return {
             "total_users": total_users,
@@ -387,7 +396,7 @@ async def get_business_insights() -> Dict:
         logger.error(f"Error fetching business insights: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to fetch insights"
+            detail="Failed to fetch insights",
         )
 
 
@@ -404,21 +413,21 @@ async def export_business_data() -> Dict:
 
     try:
         # Export anonymized aggregate data
-        all_data = list(db["business_intelligence"].find(
-            {},
-            {"_id": 0, "user_id": 0}  # Remove identifying info
-        ))
+        all_data = list(
+            db["business_intelligence"].find(
+                {}, {"_id": 0, "user_id": 0}  # Remove identifying info
+            )
+        )
 
         return {
             "data_points": len(all_data),
             "data": all_data[:100],  # Limit to 100 for demo
             "export_date": datetime.utcnow().isoformat(),
-            "note": "This is anonymized aggregate data safe for sharing"
+            "note": "This is anonymized aggregate data safe for sharing",
         }
 
     except Exception as e:
         logger.error(f"Error exporting data: {e}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Export failed"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Export failed"
         )

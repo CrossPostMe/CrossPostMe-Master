@@ -74,7 +74,9 @@ class LeadService:
 
                 if existing_lead:
                     logger.info(f"Found existing lead by email: {existing_lead['id']}")
-                    lead_id = str(existing_lead["id"]) if existing_lead.get("id") else None
+                    lead_id = (
+                        str(existing_lead["id"]) if existing_lead.get("id") else None
+                    )
                     await self._update_lead_last_contact(
                         lead_id,
                         message_data,
@@ -93,7 +95,9 @@ class LeadService:
 
                 if existing_lead:
                     logger.info(f"Found existing lead by phone: {existing_lead['id']}")
-                    lead_id = str(existing_lead["id"]) if existing_lead.get("id") else None
+                    lead_id = (
+                        str(existing_lead["id"]) if existing_lead.get("id") else None
+                    )
                     await self._update_lead_last_contact(
                         lead_id,
                         message_data,
@@ -185,7 +189,9 @@ class LeadService:
             logger.error(f"Error updating lead {lead_id}: {e}", exc_info=True)
             return False
 
-    async def _update_lead_last_contact(self, lead_id: str | None, message_data: dict) -> None:
+    async def _update_lead_last_contact(
+        self, lead_id: str | None, message_data: dict
+    ) -> None:
         """Update the last_contact_at timestamp for an existing lead"""
         if lead_id is None:
             logger.warning("Cannot update lead last contact: lead_id is None")

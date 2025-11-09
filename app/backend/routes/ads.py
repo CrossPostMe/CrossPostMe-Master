@@ -1,14 +1,13 @@
+import logging
 import os
 import random
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException
-
 from auth import get_optional_current_user
 from db import get_db
+from fastapi import APIRouter, Depends, HTTPException
 from models import Ad, AdAnalytics, AdCreate, AdUpdate, DashboardStats, PostedAd
-from supabase_db import db as supabase_db
 
 # Feature flags for Supabase migration
 USE_SUPABASE = os.getenv("USE_SUPABASE", "true").lower() in ("true", "1", "yes")
@@ -82,7 +81,6 @@ def normalize_posted_ad_dict(doc: dict[str, Any]) -> dict[str, Any]:
 # Typed database wrapper
 db = get_db()
 
-import logging
 logger = logging.getLogger(__name__)
 
 
@@ -100,6 +98,7 @@ async def create_ad(ad: AdCreate) -> Ad:
         # --- SUPABASE PATH (PRIMARY) ---
         try:
             from supabase_db import get_supabase
+
             client = get_supabase()
             if client:
                 # Insert into Supabase listings table
@@ -117,19 +116,23 @@ async def create_ad(ad: AdCreate) -> Ad:
                     "platforms": doc.get("platforms", {}),
                     "metadata": {
                         "scheduled_time": doc.get("scheduled_time"),
-                        "original_doc": doc  # Store full doc for compatibility
-                    }
+                        "original_doc": doc,  # Store full doc for compatibility
+                    },
                 }
-                result = client.table("listings").insert(listing_data).execute()
+                client.table("listings").insert(listing_data).execute()
                 logger.info(f"Ad created in Supabase: {doc['id']}")
 
                 # PARALLEL WRITE: Also write to MongoDB
                 if PARALLEL_WRITE:
                     try:
                         await db["ads"].insert_one(doc)
-                        logger.info(f"✅ Parallel write to MongoDB successful for ad: {doc['id']}")
+                        logger.info(
+                            f"✅ Parallel write to MongoDB successful for ad: {doc['id']}"
+                        )
                     except Exception as e:
-                        logger.warning(f"⚠️  Parallel MongoDB write failed for ad {doc['id']}: {e}")
+                        logger.warning(
+                            f"⚠️  Parallel MongoDB write failed for ad {doc['id']}: {e}"
+                        )
         except Exception as e:
             logger.error(f"Ad creation failed (Supabase): {e}")
             raise HTTPException(status_code=500, detail="Failed to create ad")
@@ -154,6 +157,7 @@ async def get_ads(
         # --- SUPABASE PATH (PRIMARY) ---
         try:
             from supabase_db import get_supabase
+
             client = get_supabase()
             if client:
                 query = client.table("listings").select("*")
@@ -187,7 +191,9 @@ async def get_ads(
                             "platforms": listing.get("platforms", []),
                             "created_at": listing.get("created_at"),
                         }
-                    deserialize_datetime_fields(ad_data, ["created_at", "scheduled_time"])
+                    deserialize_datetime_fields(
+                        ad_data, ["created_at", "scheduled_time"]
+                    )
                     ads.append(Ad(**ad_data))
 
                 logger.info(f"Fetched {len(ads)} ads from Supabase")
@@ -204,7 +210,9 @@ async def get_ads(
         if user_id:
             query["user_id"] = user_id
 
-        ads_docs = await db["ads"].find(query, {"_id": 0}).sort("created_at", -1).to_list(1000)
+        ads_docs = (
+            await db["ads"].find(query, {"_id": 0}).sort("created_at", -1).to_list(1000)
+        )
 
         # Convert ISO string timestamps back to datetime objects
         for ad in ads_docs:
@@ -225,6 +233,7 @@ async def get_ad(ad_id: str) -> Ad:
         # --- SUPABASE PATH (PRIMARY) ---
         try:
             from supabase_db import get_supabase
+
             client = get_supabase()
             if client:
                 result = client.table("listings").select("*").eq("id", ad_id).execute()
@@ -275,6 +284,7 @@ async def update_ad(ad_id: str, ad_update: AdUpdate) -> Ad:
         # --- SUPABASE PATH (PRIMARY) ---
         try:
             from supabase_db import get_supabase
+
             client = get_supabase()
             if client:
                 # Build update data from AdUpdate model
@@ -282,7 +292,9 @@ async def update_ad(ad_id: str, ad_update: AdUpdate) -> Ad:
 
                 # Convert datetime fields to ISO strings
                 if "scheduled_time" in update_data and update_data["scheduled_time"]:
-                    update_data["scheduled_time"] = update_data["scheduled_time"].isoformat()
+                    update_data["scheduled_time"] = update_data[
+                        "scheduled_time"
+                    ].isoformat()
 
                 # Map to Supabase listing fields
                 listing_update = {}
@@ -291,7 +303,9 @@ async def update_ad(ad_id: str, ad_update: AdUpdate) -> Ad:
                 if "description" in update_data:
                     listing_update["description"] = update_data["description"]
                 if "price" in update_data:
-                    listing_update["price"] = float(update_data["price"]) if update_data["price"] else None
+                    listing_update["price"] = (
+                        float(update_data["price"]) if update_data["price"] else None
+                    )
                 if "category" in update_data:
                     listing_update["category"] = update_data["category"]
                 if "location" in update_data:
@@ -306,7 +320,12 @@ async def update_ad(ad_id: str, ad_update: AdUpdate) -> Ad:
                 listing_update["updated_at"] = datetime.now(timezone.utc).isoformat()
 
                 # Update in Supabase
-                result = client.table("listings").update(listing_update).eq("id", ad_id).execute()
+                result = (
+                    client.table("listings")
+                    .update(listing_update)
+                    .eq("id", ad_id)
+                    .execute()
+                )
 
                 if result.data and len(result.data) > 0:
                     listing = result.data[0]
@@ -331,10 +350,16 @@ async def update_ad(ad_id: str, ad_update: AdUpdate) -> Ad:
                     # PARALLEL WRITE: Also update in MongoDB
                     if PARALLEL_WRITE:
                         try:
-                            await db["ads"].update_one({"id": ad_id}, {"$set": update_data})
-                            logger.info(f"✅ Parallel write to MongoDB successful for ad update: {ad_id}")
+                            await db["ads"].update_one(
+                                {"id": ad_id}, {"$set": update_data}
+                            )
+                            logger.info(
+                                f"✅ Parallel write to MongoDB successful for ad update: {ad_id}"
+                            )
                         except Exception as e:
-                            logger.warning(f"⚠️  Parallel MongoDB write failed for ad update {ad_id}: {e}")
+                            logger.warning(
+                                f"⚠️  Parallel MongoDB write failed for ad update {ad_id}: {e}"
+                            )
                 else:
                     raise HTTPException(status_code=404, detail="Ad not found")
 
@@ -374,14 +399,20 @@ async def delete_ad(ad_id: str) -> dict[str, str]:
         # --- SUPABASE PATH (PRIMARY) ---
         try:
             from supabase_db import get_supabase
+
             client = get_supabase()
             if client:
                 # Soft delete by setting status to 'deleted'
                 update_data = {
                     "status": "deleted",
-                    "updated_at": datetime.now(timezone.utc).isoformat()
+                    "updated_at": datetime.now(timezone.utc).isoformat(),
                 }
-                result = client.table("listings").update(update_data).eq("id", ad_id).execute()
+                result = (
+                    client.table("listings")
+                    .update(update_data)
+                    .eq("id", ad_id)
+                    .execute()
+                )
 
                 if result.data and len(result.data) > 0:
                     logger.info(f"Soft-deleted ad in Supabase: {ad_id}")
@@ -389,10 +420,16 @@ async def delete_ad(ad_id: str) -> dict[str, str]:
                     # PARALLEL WRITE: Also soft-delete in MongoDB
                     if PARALLEL_WRITE:
                         try:
-                            await db["ads"].update_one({"id": ad_id}, {"$set": update_data})
-                            logger.info(f"✅ Parallel write to MongoDB successful for ad deletion: {ad_id}")
+                            await db["ads"].update_one(
+                                {"id": ad_id}, {"$set": update_data}
+                            )
+                            logger.info(
+                                f"✅ Parallel write to MongoDB successful for ad deletion: {ad_id}"
+                            )
                         except Exception as e:
-                            logger.warning(f"⚠️  Parallel MongoDB write failed for ad deletion {ad_id}: {e}")
+                            logger.warning(
+                                f"⚠️  Parallel MongoDB write failed for ad deletion {ad_id}: {e}"
+                            )
 
                     return {"message": "Ad deleted successfully"}
                 else:
@@ -492,6 +529,7 @@ async def post_ad(
                 # --- SUPABASE PATH (PRIMARY) ---
                 try:
                     from supabase_db import get_supabase
+
                     client = get_supabase()
                     if client:
                         # Insert into posted_ads table
@@ -500,22 +538,28 @@ async def post_ad(
                             "platform": platform,
                             "platform_ad_id": result.platform_ad_id,
                             "post_url": result.post_url,
-                            "status": "active"
+                            "status": "active",
                         }
                         client.table("posted_ads").insert(posted_data).execute()
-                        logger.info(f"Saved posted ad to Supabase: {ad_id} on {platform}")
+                        logger.info(
+                            f"Saved posted ad to Supabase: {ad_id} on {platform}"
+                        )
 
                         # Update listing platforms JSONB
                         listing_update = {
-                            "platforms": {platform: {
-                                "posted_at": datetime.now(timezone.utc).isoformat(),
-                                "platform_ad_id": result.platform_ad_id,
-                                "post_url": result.post_url,
-                                "status": "active"
-                            }},
-                            "updated_at": datetime.now(timezone.utc).isoformat()
+                            "platforms": {
+                                platform: {
+                                    "posted_at": datetime.now(timezone.utc).isoformat(),
+                                    "platform_ad_id": result.platform_ad_id,
+                                    "post_url": result.post_url,
+                                    "status": "active",
+                                }
+                            },
+                            "updated_at": datetime.now(timezone.utc).isoformat(),
                         }
-                        client.table("listings").update(listing_update).eq("id", ad_id).execute()
+                        client.table("listings").update(listing_update).eq(
+                            "id", ad_id
+                        ).execute()
 
                         # PARALLEL WRITE: Also save to MongoDB
                         if PARALLEL_WRITE:
@@ -523,10 +567,16 @@ async def post_ad(
                                 doc = posted_ad.model_dump()
                                 serialize_datetime_fields(doc, ["posted_at"])
                                 await db["posted_ads"].insert_one(doc)
-                                await db["ads"].update_one({"id": ad_id}, {"$set": {"status": "posted"}})
-                                logger.info(f"✅ Parallel write to MongoDB successful for posted ad: {ad_id}")
+                                await db["ads"].update_one(
+                                    {"id": ad_id}, {"$set": {"status": "posted"}}
+                                )
+                                logger.info(
+                                    f"✅ Parallel write to MongoDB successful for posted ad: {ad_id}"
+                                )
                             except Exception as e:
-                                logger.warning(f"⚠️  Parallel MongoDB write failed for posted ad {ad_id}: {e}")
+                                logger.warning(
+                                    f"⚠️  Parallel MongoDB write failed for posted ad {ad_id}: {e}"
+                                )
                 except Exception as e:
                     logger.error(f"Failed to save posted ad to Supabase: {e}")
                     # Continue with response even if DB save fails
@@ -563,9 +613,6 @@ async def post_ad(
 
     except Exception as e:
         # Log error and return HTTP exception
-        import logging
-
-        logger = logging.getLogger("ads.post")
         logger.error(f"Error posting to {platform}: {e}")
 
         raise HTTPException(
@@ -641,6 +688,7 @@ async def post_ad_multiple_platforms(
                 # --- SUPABASE PATH (PRIMARY) ---
                 try:
                     from supabase_db import get_supabase
+
                     client = get_supabase()
                     if client:
                         # Insert into posted_ads table
@@ -649,25 +697,36 @@ async def post_ad_multiple_platforms(
                             "platform": platform,
                             "platform_ad_id": result.platform_ad_id,
                             "post_url": result.post_url,
-                            "status": "active"
+                            "status": "active",
                         }
                         client.table("posted_ads").insert(posted_data).execute()
 
                         # Update listing platforms JSONB
-                        current_listing = client.table("listings").select("platforms").eq("id", ad_id).execute()
-                        current_platforms = current_listing.data[0].get("platforms", {}) if current_listing.data else {}
+                        current_listing = (
+                            client.table("listings")
+                            .select("platforms")
+                            .eq("id", ad_id)
+                            .execute()
+                        )
+                        current_platforms = (
+                            current_listing.data[0].get("platforms", {})
+                            if current_listing.data
+                            else {}
+                        )
                         current_platforms[platform] = {
                             "posted_at": datetime.now(timezone.utc).isoformat(),
                             "platform_ad_id": result.platform_ad_id,
                             "post_url": result.post_url,
-                            "status": "active"
+                            "status": "active",
                         }
 
                         listing_update = {
                             "platforms": current_platforms,
-                            "updated_at": datetime.now(timezone.utc).isoformat()
+                            "updated_at": datetime.now(timezone.utc).isoformat(),
                         }
-                        client.table("listings").update(listing_update).eq("id", ad_id).execute()
+                        client.table("listings").update(listing_update).eq(
+                            "id", ad_id
+                        ).execute()
 
                         # PARALLEL WRITE: Also save to MongoDB
                         if PARALLEL_WRITE:
@@ -675,9 +734,13 @@ async def post_ad_multiple_platforms(
                                 doc = posted_ad.model_dump()
                                 serialize_datetime_fields(doc, ["posted_at"])
                                 await db["posted_ads"].insert_one(doc)
-                                logger.info(f"✅ Parallel write to MongoDB successful for multi-post: {ad_id} on {platform}")
+                                logger.info(
+                                    f"✅ Parallel write to MongoDB successful for multi-post: {ad_id} on {platform}"
+                                )
                             except Exception as e:
-                                logger.warning(f"⚠️  Parallel MongoDB write failed for multi-post {ad_id} on {platform}: {e}")
+                                logger.warning(
+                                    f"⚠️  Parallel MongoDB write failed for multi-post {ad_id} on {platform}: {e}"
+                                )
                 except Exception as e:
                     logger.error(f"Failed to save multi-post to Supabase: {e}")
                     # Continue processing other platforms
@@ -711,12 +774,15 @@ async def post_ad_multiple_platforms(
             # Update Supabase listing status
             try:
                 from supabase_db import get_supabase
+
                 client = get_supabase()
                 if client:
-                    client.table("listings").update({
-                        "status": "posted",
-                        "updated_at": datetime.now(timezone.utc).isoformat()
-                    }).eq("id", ad_id).execute()
+                    client.table("listings").update(
+                        {
+                            "status": "posted",
+                            "updated_at": datetime.now(timezone.utc).isoformat(),
+                        }
+                    ).eq("id", ad_id).execute()
             except Exception as e:
                 logger.error(f"Failed to update listing status in Supabase: {e}")
 
@@ -742,9 +808,17 @@ async def get_posted_ads(ad_id: str) -> list[PostedAd]:
         # --- SUPABASE PATH (PRIMARY) ---
         try:
             from supabase_db import get_supabase
+
             client = get_supabase()
             if client:
-                result = client.table("posted_ads").select("*").eq("ad_id", ad_id).order("posted_at", desc=True).limit(1000).execute()
+                result = (
+                    client.table("posted_ads")
+                    .select("*")
+                    .eq("ad_id", ad_id)
+                    .order("posted_at", desc=True)
+                    .limit(1000)
+                    .execute()
+                )
 
                 for posted in result.data:
                     posted_ad_dict = {
@@ -757,17 +831,23 @@ async def get_posted_ads(ad_id: str) -> list[PostedAd]:
                         "status": posted.get("status", "active"),
                         "views": posted.get("views", 0),
                         "clicks": posted.get("clicks", 0),
-                        "leads": posted.get("leads", 0)
+                        "leads": posted.get("leads", 0),
                     }
-                    posted_ads.append(PostedAd(**normalize_posted_ad_dict(posted_ad_dict)))
+                    posted_ads.append(
+                        PostedAd(**normalize_posted_ad_dict(posted_ad_dict))
+                    )
 
-                logger.info(f"Fetched {len(posted_ads)} posted ads from Supabase for ad: {ad_id}")
+                logger.info(
+                    f"Fetched {len(posted_ads)} posted ads from Supabase for ad: {ad_id}"
+                )
         except Exception as e:
             logger.error(f"Failed to fetch posted ads from Supabase: {e}")
             raise HTTPException(status_code=500, detail="Failed to fetch posted ads")
     else:
         # --- MONGODB PATH (FALLBACK) ---
-        posted_ads_docs = await db["posted_ads"].find({"ad_id": ad_id}, {"_id": 0}).to_list(1000)
+        posted_ads_docs = (
+            await db["posted_ads"].find({"ad_id": ad_id}, {"_id": 0}).to_list(1000)
+        )
 
         # Convert ISO string timestamps back to datetime objects and coerce types
         for pa in posted_ads_docs:
@@ -786,6 +866,7 @@ async def get_all_posted_ads(platform: str | None = None) -> list[PostedAd]:
         # --- SUPABASE PATH (PRIMARY) ---
         try:
             from supabase_db import get_supabase
+
             client = get_supabase()
             if client:
                 query = client.table("posted_ads").select("*")
@@ -807,9 +888,11 @@ async def get_all_posted_ads(platform: str | None = None) -> list[PostedAd]:
                         "status": posted.get("status", "active"),
                         "views": posted.get("views", 0),
                         "clicks": posted.get("clicks", 0),
-                        "leads": posted.get("leads", 0)
+                        "leads": posted.get("leads", 0),
                     }
-                    posted_ads.append(PostedAd(**normalize_posted_ad_dict(posted_ad_dict)))
+                    posted_ads.append(
+                        PostedAd(**normalize_posted_ad_dict(posted_ad_dict))
+                    )
 
                 logger.info(f"Fetched {len(posted_ads)} posted ads from Supabase")
         except Exception as e:
@@ -850,35 +933,55 @@ async def get_dashboard_stats() -> DashboardStats:
         # --- SUPABASE PATH (PRIMARY) ---
         try:
             from supabase_db import get_supabase
+
             client = get_supabase()
             if client:
                 # Get total ads count
-                ads_result = client.table("listings").select("id", count="exact").execute()
+                ads_result = (
+                    client.table("listings").select("id", count="exact").execute()
+                )
                 total_ads = ads_result.count if ads_result.count is not None else 0
 
                 # Get active ads count (status = 'posted')
-                active_result = client.table("listings").select("id", count="exact").eq("status", "posted").execute()
-                active_ads = active_result.count if active_result.count is not None else 0
+                active_result = (
+                    client.table("listings")
+                    .select("id", count="exact")
+                    .eq("status", "posted")
+                    .execute()
+                )
+                active_ads = (
+                    active_result.count if active_result.count is not None else 0
+                )
 
                 # Get total posts count
-                posts_result = client.table("posted_ads").select("id", count="exact").execute()
-                total_posts = posts_result.count if posts_result.count is not None else 0
+                posts_result = (
+                    client.table("posted_ads").select("id", count="exact").execute()
+                )
+                total_posts = (
+                    posts_result.count if posts_result.count is not None else 0
+                )
 
                 # Get aggregate views and leads from posted_ads
                 # Note: This is a simplified version - in production you'd want proper analytics tables
-                analytics_result = client.table("posted_ads").select("views,leads").execute()
+                analytics_result = (
+                    client.table("posted_ads").select("views,leads").execute()
+                )
                 for row in analytics_result.data:
                     total_views += row.get("views", 0)
                     total_leads += row.get("leads", 0)
 
                 # Get platforms connected (distinct platforms in posted_ads)
-                platforms_result = client.table("posted_ads").select("platform").execute()
+                platforms_result = (
+                    client.table("posted_ads").select("platform").execute()
+                )
                 unique_platforms = set()
                 for row in platforms_result.data:
                     unique_platforms.add(row["platform"])
                 platforms_connected = len(unique_platforms)
 
-                logger.info(f"Dashboard stats from Supabase: {total_ads} ads, {active_ads} active, {total_posts} posts")
+                logger.info(
+                    f"Dashboard stats from Supabase: {total_ads} ads, {active_ads} active, {total_posts} posts"
+                )
         except Exception as e:
             logger.error(f"Failed to get dashboard stats from Supabase: {e}")
             raise HTTPException(status_code=500, detail="Failed to get dashboard stats")
@@ -916,13 +1019,20 @@ async def get_ad_analytics(ad_id: str, days: int = 7) -> list[AdAnalytics]:
         # --- SUPABASE PATH (PRIMARY) ---
         try:
             from supabase_db import get_supabase
+
             client = get_supabase()
             if client:
                 # Get posted ads for this ad_id within date range
                 start_date = datetime.now(timezone.utc) - timedelta(days=days)
                 start_iso = start_date.isoformat()
 
-                result = client.table("posted_ads").select("*").eq("ad_id", ad_id).gte("posted_at", start_iso).execute()
+                result = (
+                    client.table("posted_ads")
+                    .select("*")
+                    .eq("ad_id", ad_id)
+                    .gte("posted_at", start_iso)
+                    .execute()
+                )
 
                 for posted in result.data:
                     # For now, generate mock analytics data based on posted ad
@@ -940,7 +1050,9 @@ async def get_ad_analytics(ad_id: str, days: int = 7) -> list[AdAnalytics]:
                         ),
                     )
 
-                logger.info(f"Generated analytics for {len(analytics)} posted ads from Supabase")
+                logger.info(
+                    f"Generated analytics for {len(analytics)} posted ads from Supabase"
+                )
         except Exception as e:
             logger.error(f"Failed to get ad analytics from Supabase: {e}")
             raise HTTPException(status_code=500, detail="Failed to get ad analytics")

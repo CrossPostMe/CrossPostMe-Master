@@ -3,6 +3,7 @@ from typing import List
 from config import AVAILABLE_PLATFORMS
 from fastapi import APIRouter, Depends, HTTPException
 from models import PlatformAccount, PlatformAccountCreate
+
 from routes.dependencies import get_db
 
 router = APIRouter(prefix="/api/platforms", tags=["platforms"])

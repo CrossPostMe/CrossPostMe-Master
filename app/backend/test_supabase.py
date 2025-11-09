@@ -11,6 +11,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 
 from supabase_db import db, get_supabase
 
+
 def test_connection():
     """Test Supabase connection"""
     print("🔍 Testing Supabase connection...")
@@ -29,7 +30,7 @@ def test_connection():
         print("\n📊 Testing database query...")
         try:
             users = client.table("users").select("*").limit(1).execute()
-            print(f"✅ Database query successful")
+            print("✅ Database query successful")
             print(f"   Users found: {len(users.data) if users.data else 0}")
         except Exception as e:
             print(f"❌ Database query failed: {e}")
@@ -41,7 +42,7 @@ def test_connection():
         try:
             # This should work even if no data exists
             stats = db.get_industry_stats()
-            print(f"✅ SupabaseDB methods working")
+            print("✅ SupabaseDB methods working")
             print(f"   Industry stats: {len(stats)} records")
         except Exception as e:
             print(f"⚠️  SupabaseDB method warning: {e}")
@@ -55,7 +56,7 @@ def test_connection():
             "listings",
             "business_intelligence",
             "platform_connections",
-            "analytics"
+            "analytics",
         ]
 
         for table in required_tables:
@@ -84,6 +85,7 @@ def test_connection():
         print("3. Make sure you've run the SQL schema in Supabase")
         print("4. Verify the credentials are for the correct project")
         return False
+
 
 if __name__ == "__main__":
     print("\n" + "=" * 50)

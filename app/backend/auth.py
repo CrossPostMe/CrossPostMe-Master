@@ -11,7 +11,8 @@ from pydantic import BaseModel
 # JWT Configuration
 try:
     from vault import get_secret
-    _SECRET_KEY = get_secret('secret_key')
+
+    _SECRET_KEY = get_secret("secret_key")
 except Exception:
     # Fallback to environment variable
     _SECRET_KEY = os.getenv("SECRET_KEY")
@@ -109,8 +110,8 @@ def get_password_hash(password: str) -> str:
     """Hash a password for storing."""
     # Truncate password to 72 bytes for bcrypt compatibility
     # (bcrypt has a 72-byte limit)
-    if len(password.encode('utf-8')) > 72:
-        password = password.encode('utf-8')[:72].decode('utf-8', errors='ignore')
+    if len(password.encode("utf-8")) > 72:
+        password = password.encode("utf-8")[:72].decode("utf-8", errors="ignore")
     return str(pwd_context.hash(password))
 
 

@@ -1,10 +1,9 @@
 import uuid
 from datetime import datetime, timezone
 
+from db import get_typed_db
 from fastapi import APIRouter
 from pydantic import BaseModel, Field
-
-from db import get_typed_db
 
 router = APIRouter(prefix="/api/diagrams", tags=["diagrams"])
 
