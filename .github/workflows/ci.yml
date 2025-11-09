@@ -54,7 +54,12 @@ jobs:
         with:
           node-version: '20'
           cache: 'yarn'
-          cache-dependency-path: app/frontend/yarn.lock
+          # Support any common lockfile so CI works no matter which package
+          # manager is used in the frontend. Paths are relative to the repo root.
+          cache-dependency-path: |
+            app/frontend/yarn.lock
+            app/frontend/package-lock.json
+            app/frontend/pnpm-lock.yaml
 
       - name: Install frontend dependencies
         run: yarn install
