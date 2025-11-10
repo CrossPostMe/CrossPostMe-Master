@@ -1,5 +1,7 @@
 # iOS App Development Starter
 
+Important: Work only from `C:\Users\johnd\Desktop\CROSSPOSTME-MASTER`; do not commit changes from any other clone or directory.
+
 ## Prerequisites
 
 - Xcode installed (latest version recommended)

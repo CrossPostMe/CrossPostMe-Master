@@ -1,8 +1,11 @@
 # E2E Tests with Playwright
 
+Important: Work only from `C:\Users\johnd\Desktop\CROSSPOSTME-MASTER`; do not commit changes from any other clone or directory.
+
 ## Running Tests Locally
 
 ### 1. Start the Frontend Dev Server
+
 ```bash
 # In terminal 1
 cd app/frontend
@@ -12,6 +15,7 @@ yarn start
 Wait for the server to start (usually takes 10-15 seconds).
 
 ### 2. Run the Tests
+
 ```bash
 # In terminal 2 (or same terminal after server is running)
 cd app/frontend
@@ -19,11 +23,13 @@ yarn test:e2e
 ```
 
 ### Alternative: Run with UI Mode (Recommended for debugging)
+
 ```bash
 yarn test:e2e:ui
 ```
 
 ### Run Specific Tests
+
 ```bash
 # Run only homepage tests
 yarn test:e2e playwright-tests/homepage.spec.js
@@ -52,11 +58,13 @@ yarn test:e2e playwright-tests/auth.spec.js
 ## Troubleshooting
 
 ### Tests timeout waiting for elements
+
 - Make sure both frontend and backend servers are running
 - Check that ports 3000 and 8000 are available
 - Try running tests with `--debug` flag: `yarn test:e2e:debug`
 
 ### Webserver timeout error
+
 - The playwright config expects the server to be pre-started locally
 - In CI, it will auto-start
 - You can force auto-start locally by setting `CI=true` environment variable
