@@ -1,4 +1,6 @@
-read![CI](https://github.com/dearthdiggler/app/actions/workflows/ci.yml/badge.svg)
+# CrossPostMe.com
+
+![CI](https://github.com/dearthdiggler/app/actions/workflows/ci.yml/badge.svg)
 
 CrossPostMe.com — Local listings automation (developer README)
 
@@ -27,7 +29,7 @@ yarn start
 
 ## Security & Environment Setup
 
-**⚠️ IMPORTANT SECURITY NOTICE ⚠️**
+## ⚠️ IMPORTANT SECURITY NOTICE ⚠️
 
 This application handles sensitive credentials and API keys. Follow these security practices:
 
@@ -89,7 +91,7 @@ If you accidentally commit secrets:
 3. **Force push the cleaned repository**
 4. **Notify all team members to re-clone**
 
-Contact for developer questions: crosspostme@gmail.com — Phone: 623-777-9969
+Contact for developer questions: <crosspostme@gmail.com> — Phone: 623-777-9969
 
 ```
 
