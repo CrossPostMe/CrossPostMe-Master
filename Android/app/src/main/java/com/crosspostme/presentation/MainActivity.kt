@@ -121,19 +121,78 @@ fun DashboardScreen(adsViewModel: AdsViewModel, navController: NavHostController
 
 @Composable
 fun LoginScreen(navController: NavHostController) {
+    var email by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    var error by remember { mutableStateOf<String?>(null) }
     Column(modifier = Modifier.fillMaxSize().padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Text("Login", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-        // ...login form UI...
-        Button(onClick = { navController.navigate("dashboard") }) { Text("Login") }
+        OutlinedTextField(
+            value = email,
+            onValueChange = { email = it },
+            label = { Text("Email") },
+            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
+        )
+        OutlinedTextField(
+            value = password,
+            onValueChange = { password = it },
+            label = { Text("Password") },
+            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+            visualTransformation = PasswordVisualTransformation()
+        )
+        error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+        Button(
+            onClick = {
+                if (email.isBlank() || password.isBlank()) {
+                    error = "Email and password required"
+                } else {
+                    // TODO: Connect to repository for login
+                    navController.navigate("dashboard")
+                }
+            },
+            modifier = Modifier.padding(top = 16.dp)
+        ) { Text("Login") }
     }
 }
 
 @Composable
 fun RegisterScreen(navController: NavHostController) {
+    var email by remember { mutableStateOf("") }
+    var username by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    var error by remember { mutableStateOf<String?>(null) }
     Column(modifier = Modifier.fillMaxSize().padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Text("Register", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-        // ...register form UI...
-        Button(onClick = { navController.navigate("dashboard") }) { Text("Register") }
+        OutlinedTextField(
+            value = username,
+            onValueChange = { username = it },
+            label = { Text("Username") },
+            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
+        )
+        OutlinedTextField(
+            value = email,
+            onValueChange = { email = it },
+            label = { Text("Email") },
+            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
+        )
+        OutlinedTextField(
+            value = password,
+            onValueChange = { password = it },
+            label = { Text("Password") },
+            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+            visualTransformation = PasswordVisualTransformation()
+        )
+        error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+        Button(
+            onClick = {
+                if (email.isBlank() || password.isBlank() || username.isBlank()) {
+                    error = "All fields required"
+                } else {
+                    // TODO: Connect to repository for registration
+                    navController.navigate("dashboard")
+                }
+            },
+            modifier = Modifier.padding(top = 16.dp)
+        ) { Text("Register") }
     }
 }
 
