@@ -23,16 +23,12 @@ if backend_dir.name == "backend":
     # Import and run the proper test (package-style import)
     from backend.tests.test_db_connection import main
 
-    print("⚠️  WARNING: Using deprecated test file.")
-    print("   Please use: python -m tests.test_db_connection")
-    print("   Or: pytest tests/test_db_connection.py -v")
-    print()
+    # Deprecated wrapper; prefer running tests via pytest or module invocation
 
     if __name__ == "__main__":
         # Only execute when run as a script. This prevents pytest from importing
         # this legacy wrapper and executing tests during collection.
         main()
 else:
-    print("Error: This script must be run from the backend directory.")
-    print("Recommended: python -m tests.test_db_connection")
+    # Keep silent to avoid noise during imports; provide non-zero exit when misused
     sys.exit(1)
