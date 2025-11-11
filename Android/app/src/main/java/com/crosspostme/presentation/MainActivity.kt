@@ -9,6 +9,10 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.navigation.NavHostController
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -46,39 +50,119 @@ class MainActivity : ComponentActivity() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CrossPostMeApp(adsViewModel: AdsViewModel) {
+    val navController = rememberNavController()
+    NavHost(navController = navController, startDestination = "dashboard") {
+        composable("dashboard") {
+            DashboardScreen(adsViewModel = adsViewModel, navController = navController)
+        }
+        composable("login") {
+            LoginScreen(navController = navController)
+        }
+        composable("register") {
+            RegisterScreen(navController = navController)
+        }
+        composable("ad_create") {
+            AdCreateScreen(adsViewModel = adsViewModel, navController = navController)
+        }
+        composable("platform_management") {
+            PlatformManagementScreen(navController = navController)
+        }
+        composable("messaging") {
+            MessagingScreen(navController = navController)
+        }
+    }
+}
+
+@Composable
+fun DashboardScreen(adsViewModel: AdsViewModel, navController: NavHostController) {
     val adsUiState by adsViewModel.adsUiState.collectAsStateWithLifecycle()
     val dashboardUiState by adsViewModel.dashboardUiState.collectAsStateWithLifecycle()
-    
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(16.dp)
     ) {
-        // App Title
         Text(
-            text = "CrossPostMe",
+            text = "CrossPostMe Dashboard",
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(bottom = 16.dp)
         )
-        
-        // Dashboard Stats Card
         dashboardUiState.stats?.let { stats ->
             DashboardStatsCard(
                 stats = stats,
                 modifier = Modifier.padding(bottom = 16.dp)
             )
         }
-        
-        // Ads Section
+        Button(onClick = { navController.navigate("ad_create") }, modifier = Modifier.padding(bottom = 8.dp)) {
+            Text("Create New Ad")
+        }
+        Button(onClick = { navController.navigate("platform_management") }, modifier = Modifier.padding(bottom = 8.dp)) {
+            Text("Manage Platforms")
+        }
+        Button(onClick = { navController.navigate("messaging") }, modifier = Modifier.padding(bottom = 8.dp)) {
+            Text("Messaging & Leads")
+        }
+        Button(onClick = { navController.navigate("login") }, modifier = Modifier.padding(bottom = 8.dp)) {
+            Text("Login")
+        }
+        Button(onClick = { navController.navigate("register") }, modifier = Modifier.padding(bottom = 8.dp)) {
+            Text("Register")
+        }
         Text(
             text = "Your Ads",
             style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.SemiBold,
             modifier = Modifier.padding(bottom = 8.dp)
         )
-        
-        // Loading state
+        // ...existing ad list UI...
+    }
+}
+
+@Composable
+fun LoginScreen(navController: NavHostController) {
+    Column(modifier = Modifier.fillMaxSize().padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        Text("Login", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+        // ...login form UI...
+        Button(onClick = { navController.navigate("dashboard") }) { Text("Login") }
+    }
+}
+
+@Composable
+fun RegisterScreen(navController: NavHostController) {
+    Column(modifier = Modifier.fillMaxSize().padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        Text("Register", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+        // ...register form UI...
+        Button(onClick = { navController.navigate("dashboard") }) { Text("Register") }
+    }
+}
+
+@Composable
+fun AdCreateScreen(adsViewModel: AdsViewModel, navController: NavHostController) {
+    Column(modifier = Modifier.fillMaxSize().padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        Text("Create/Edit Ad", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+        // ...ad creation/edit form UI...
+        Button(onClick = { navController.navigate("dashboard") }) { Text("Save Ad") }
+    }
+}
+
+@Composable
+fun PlatformManagementScreen(navController: NavHostController) {
+    Column(modifier = Modifier.fillMaxSize().padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        Text("Platform Management", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+        // ...platform account management UI...
+        Button(onClick = { navController.navigate("dashboard") }) { Text("Back to Dashboard") }
+    }
+}
+
+@Composable
+fun MessagingScreen(navController: NavHostController) {
+    Column(modifier = Modifier.fillMaxSize().padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        Text("Messaging & Leads", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+        // ...messaging and leads UI...
+        Button(onClick = { navController.navigate("dashboard") }) { Text("Back to Dashboard") }
+    }
+}
         if (adsUiState.isLoading) {
             Box(
                 modifier = Modifier.fillMaxWidth(),
