@@ -20,8 +20,6 @@ from .routes import ads, ai, auth, diagrams, platform_oauth, platforms
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / ".env")
 
-# DEBUG: Print MONGO_URL at startup to help diagnose Render env issues
-print("DEBUG: MONGO_URL at startup:", os.environ.get("MONGO_URL"))
 
 
 # Use typed database wrapper

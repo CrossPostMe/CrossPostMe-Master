@@ -17,7 +17,7 @@ router = APIRouter(prefix="/api/ads", tags=["ads"])
 
 # Helper functions for datetime serialization/deserialization
 def serialize_datetime_fields(doc: dict[str, Any], fields: list[str]) -> dict[str, Any]:
-    """Convert datetime objects to ISO strings for MongoDB storage."""
+    """Convert datetime objects to ISO strings for Supabase storage."""
     for field in fields:
         if field in doc and doc[field] is not None and isinstance(doc[field], datetime):
             doc[field] = doc[field].isoformat()

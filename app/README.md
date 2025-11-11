@@ -93,6 +93,6 @@ If you accidentally commit secrets:
 
 Contact for developer questions: <crosspostme@gmail.com> — Phone: 623-777-9969
 
-```
+```text
 
 ```
