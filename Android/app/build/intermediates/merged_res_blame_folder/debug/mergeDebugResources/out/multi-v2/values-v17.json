@@ -1,10 +1,10 @@
 {
     "logs": [
         {
-            "outputFile": "com.crosspostme.app-mergeDebugResources-61:/values-v17/values-v17.xml",
+            "outputFile": "com.crosspostme.app-mergeDebugResources-68:/values-v17/values-v17.xml",
             "map": [
                 {
-                    "source": "C:\\Users\\johnd\\.gradle\\caches\\8.13\\transforms\\fd0411b962db11030f0dacc499fb7311\\transformed\\appcompat-1.6.1\\res\\values-v17\\values-v17.xml",
+                    "source": "C:\\Users\\johnd\\.gradle\\caches\\8.13\\transforms\\994c19e1c9440a0a537228dd9e88cb1e\\transformed\\appcompat-1.6.1\\res\\values-v17\\values-v17.xml",
                     "from": {
                         "startLines": "2,5,9,12,15,18,22,25,29,33,37,40,43,46,50,53,57",
                         "startColumns": "4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4",
