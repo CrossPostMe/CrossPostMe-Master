@@ -16,7 +16,9 @@ import androidx.navigation.compose.rememberNavController
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.crosspostme.data.model.Ad
 import com.crosspostme.presentation.viewmodel.AdsViewModel
@@ -144,6 +146,16 @@ fun LoginScreen(navController: NavHostController) {
     var password by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
     var isLoading by remember { mutableStateOf(false) }
+    
+    // Handle login simulation
+    LaunchedEffect(isLoading) {
+        if (isLoading) {
+            kotlinx.coroutines.delay(1000)
+            isLoading = false
+            navController.navigate("dashboard")
+        }
+    }
+    
     Column(modifier = Modifier.fillMaxSize().padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Text("Login", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
         OutlinedTextField(
@@ -169,13 +181,6 @@ fun LoginScreen(navController: NavHostController) {
                     error = "Email and password required"
                 } else {
                     isLoading = true
-                    // TODO: Connect to repository for login
-                    // Simulate loading
-                    LaunchedEffect(Unit) {
-                        kotlinx.coroutines.delay(1000)
-                        isLoading = false
-                        navController.navigate("dashboard")
-                    }
                 }
             },
             modifier = Modifier.padding(top = 16.dp),
@@ -191,6 +196,16 @@ fun RegisterScreen(navController: NavHostController) {
     var password by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
     var isLoading by remember { mutableStateOf(false) }
+    
+    // Handle registration simulation
+    LaunchedEffect(isLoading) {
+        if (isLoading) {
+            kotlinx.coroutines.delay(1000)
+            isLoading = false
+            navController.navigate("dashboard")
+        }
+    }
+    
     Column(modifier = Modifier.fillMaxSize().padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Text("Register", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
         OutlinedTextField(
@@ -222,13 +237,6 @@ fun RegisterScreen(navController: NavHostController) {
                     error = "All fields required"
                 } else {
                     isLoading = true
-                    // TODO: Connect to repository for registration
-                    // Simulate loading
-                    LaunchedEffect(Unit) {
-                        kotlinx.coroutines.delay(1000)
-                        isLoading = false
-                        navController.navigate("dashboard")
-                    }
                 }
             },
             modifier = Modifier.padding(top = 16.dp),
@@ -246,6 +254,16 @@ fun AdCreateScreen(adsViewModel: AdsViewModel, navController: NavHostController)
     var location by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
     var isLoading by remember { mutableStateOf(false) }
+    
+    // Handle ad creation simulation
+    LaunchedEffect(isLoading) {
+        if (isLoading) {
+            kotlinx.coroutines.delay(1000)
+            isLoading = false
+            navController.navigate("dashboard")
+        }
+    }
+    
     Column(modifier = Modifier.fillMaxSize().padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Text("Create/Edit Ad", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
         OutlinedTextField(
@@ -288,13 +306,6 @@ fun AdCreateScreen(adsViewModel: AdsViewModel, navController: NavHostController)
                     error = "All fields required"
                 } else {
                     isLoading = true
-                    // TODO: Connect to ViewModel for ad creation
-                    // Simulate loading
-                    LaunchedEffect(Unit) {
-                        kotlinx.coroutines.delay(1000)
-                        isLoading = false
-                        navController.navigate("dashboard")
-                    }
                 }
             },
             modifier = Modifier.padding(top = 16.dp),

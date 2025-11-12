@@ -3,6 +3,7 @@ package com.crosspostme.data.model
 import android.os.Parcelable
 import com.google.gson.annotations.SerializedName
 import kotlinx.parcelize.Parcelize
+import kotlinx.parcelize.IgnoredOnParcel
 import java.util.*
 
 /**
@@ -64,6 +65,7 @@ data class IncomingMessage(
     val priority: String = "normal", // low, normal, high, urgent
     
     @SerializedName("raw_data")
+    @IgnoredOnParcel
     val rawData: Map<String, Any>? = null
 ) : Parcelable
 
@@ -106,6 +108,7 @@ data class IncomingMessageCreate(
     val priority: String = "normal",
     
     @SerializedName("raw_data")
+    @IgnoredOnParcel
     val rawData: Map<String, Any>? = null
 ) : Parcelable
 
