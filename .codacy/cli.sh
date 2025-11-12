@@ -4,10 +4,28 @@
 set -e +o pipefail
 
 # Set up paths first
-bin_name="codacy-cli-v2"
+# Windows releases ship an .exe, so append the extension when required.
+raw_os_name=$(uname)
+os_name=$(echo "$raw_os_name" | tr '[:upper:]' '[:lower:]')
+case "$raw_os_name" in
+    MINGW*|MSYS*|CYGWIN*)
+        os_name="windows"
+        ;;
+    Darwin)
+        os_name="darwin"
+        ;;
+    Linux)
+        os_name="linux"
+        ;;
+esac
+
+bin_ext=""
+if [ "$os_name" = "windows" ]; then
+        bin_ext=".exe"
+fi
+bin_name="codacy-cli-v2${bin_ext}"
 
 # Determine OS-specific paths
-os_name=$(uname)
 arch=$(uname -m)
 
 case "$arch" in
@@ -87,9 +105,6 @@ download() {
 }
 
 download_cli() {
-    # OS name lower case
-    suffix=$(echo "$os_name" | tr '[:upper:]' '[:lower:]')
-
     local bin_folder="$1"
     local bin_path="$2"
     local version="$3"
@@ -97,11 +112,19 @@ download_cli() {
     if [ ! -f "$bin_path" ]; then
         echo "📥 Downloading CLI version $version..."
 
-        remote_file="codacy-cli-v2_${version}_${suffix}_${arch}.tar.gz"
-        url="https://github.com/codacy/codacy-cli-v2/releases/download/${version}/${remote_file}"
+        if [ "$os_name" = "windows" ]; then
+            remote_file="codacy-cli-v2_${version}_${os_name}_${arch}.zip"
+            url="https://github.com/codacy/codacy-cli-v2/releases/download/${version}/${remote_file}"
 
-        download "$url" "$bin_folder"
-        tar xzfv "${bin_folder}/${remote_file}" -C "${bin_folder}"
+            download "$url" "$bin_folder"
+            unzip -oq "${bin_folder}/${remote_file}" -d "${bin_folder}"
+        else
+            remote_file="codacy-cli-v2_${version}_${os_name}_${arch}.tar.gz"
+            url="https://github.com/codacy/codacy-cli-v2/releases/download/${version}/${remote_file}"
+
+            download "$url" "$bin_folder"
+            tar xzf "${bin_folder}/${remote_file}" -C "${bin_folder}"
+        fi
     fi
 }
 
