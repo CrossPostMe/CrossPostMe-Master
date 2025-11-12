@@ -322,45 +322,8 @@ fun MessagingScreen(navController: NavHostController) {
         Button(onClick = { navController.navigate("dashboard") }, modifier = Modifier.padding(top = 16.dp)) { Text("Back to Dashboard") }
     }
 }
-        if (adsUiState.isLoading) {
-            Box(
-                modifier = Modifier.fillMaxWidth(),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator()
-            }
-        }
-        
-        // Error state
-        adsUiState.error?.let { error ->
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 8.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.errorContainer
-                )
-            ) {
-                Text(
-                    text = error,
-                    color = MaterialTheme.colorScheme.onErrorContainer,
-                    modifier = Modifier.padding(16.dp)
-                )
-            }
-        }
-        
-        // Ads List
-        LazyColumn {
-            items(adsUiState.ads) { ad ->
-                AdCard(
-                    ad = ad,
-                    onAdClick = { adsViewModel.selectAd(ad) },
-                    modifier = Modifier.padding(bottom = 8.dp)
-                )
-            }
-        }
-    }
-}
+
+// Removed misplaced top-level UI logic. All UI logic should be inside composable functions.
 
 @Composable
 fun DashboardStatsCard(

@@ -1,7 +1,7 @@
 {
     "logs": [
         {
-            "outputFile": "com.crosspostme.app-mergeDebugResources-56:/values-hr/values-hr.xml",
+            "outputFile": "com.crosspostme.app-mergeDebugResources-61:/values-hr/values-hr.xml",
             "map": [
                 {
                     "source": "C:\\Users\\johnd\\.gradle\\caches\\8.13\\transforms\\6c5adbd7f4bbb243fe3a1ea4e98904af\\transformed\\material-1.12.0\\res\\values-hr\\values-hr.xml",

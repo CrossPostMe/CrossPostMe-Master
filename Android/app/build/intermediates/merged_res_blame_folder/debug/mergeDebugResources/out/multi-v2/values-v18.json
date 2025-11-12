@@ -1,7 +1,7 @@
 {
     "logs": [
         {
-            "outputFile": "com.crosspostme.app-mergeDebugResources-56:/values-v18/values-v18.xml",
+            "outputFile": "com.crosspostme.app-mergeDebugResources-61:/values-v18/values-v18.xml",
             "map": [
                 {
                     "source": "C:\\Users\\johnd\\.gradle\\caches\\8.13\\transforms\\fd0411b962db11030f0dacc499fb7311\\transformed\\appcompat-1.6.1\\res\\values-v18\\values-v18.xml",

@@ -5,6 +5,7 @@ plugins {
     id("org.jetbrains.kotlin.android")
     id("com.google.dagger.hilt.android")
     id("kotlin-kapt") // This plugin is required for Hilt
+    id("kotlin-parcelize") // Enables @Parcelize annotation for data classes
 }
 
 android {
@@ -56,6 +57,9 @@ android {
 
 // This is the dependencies block where the main fix is applied.
 dependencies {
+    // OkHttp for networking and logging interceptor
+    implementation("com.squareup.okhttp3:okhttp:4.10.0")
+    implementation("com.squareup.okhttp3:logging-interceptor:4.10.0")
 
     // Core Android, Lifecycle, and Compose libraries
     implementation("androidx.core:core-ktx:1.12.0")
@@ -76,6 +80,29 @@ dependencies {
     // The Kapt annotation processor for Hilt, which generates the necessary code.
     kapt("com.google.dagger:hilt-compiler:2.48")
     // == END OF FIX ==
+
+    // Networking: Retrofit & Moshi
+    implementation("com.squareup.retrofit2:retrofit:2.9.0")
+    implementation("com.squareup.retrofit2:converter-gson:2.9.0")
+    implementation("com.squareup.moshi:moshi:1.15.0")
+    implementation("com.squareup.moshi:moshi-kotlin:1.15.0")
+    kapt("com.squareup.moshi:moshi-kotlin-codegen:1.15.0")
+
+    // Database: Room
+    implementation("androidx.room:room-runtime:2.6.1")
+    kapt("androidx.room:room-compiler:2.6.1")
+    implementation("androidx.room:room-ktx:2.6.1")
+
+    // Parcelize (already enabled via plugin)
+
+    // Kotlin Coroutines
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
+
+    // Lifecycle extensions
+    implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.7.0")
+    implementation("androidx.lifecycle:lifecycle-livedata-ktx:2.7.0")
+
+    // No kapt needed for Retrofit itself
 
     // Testing libraries
     testImplementation("junit:junit:4.13.2")

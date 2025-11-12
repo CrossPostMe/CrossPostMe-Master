@@ -1,7 +1,7 @@
 {
     "logs": [
         {
-            "outputFile": "com.crosspostme.app-mergeDebugResources-56:/values-te/values-te.xml",
+            "outputFile": "com.crosspostme.app-mergeDebugResources-61:/values-te/values-te.xml",
             "map": [
                 {
                     "source": "C:\\Users\\johnd\\.gradle\\caches\\8.13\\transforms\\8011cf5e0c52cf5552cbd35cf35cae3a\\transformed\\jetified-material3-release\\res\\values-te\\values-te.xml",
