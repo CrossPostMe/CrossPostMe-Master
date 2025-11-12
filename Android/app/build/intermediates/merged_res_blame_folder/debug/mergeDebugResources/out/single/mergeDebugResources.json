@@ -1,22 +1,22 @@
 [
     {
-        "merged": "com.crosspostme.app-debug-63:/mipmap_ic_launcher_round.png.flat",
-        "source": "com.crosspostme.app-main-65:/mipmap/ic_launcher_round.png"
+        "merged": "com.crosspostme.app-debug-70:/mipmap_ic_launcher.png.flat",
+        "source": "com.crosspostme.app-main-72:/mipmap/ic_launcher.png"
     },
     {
-        "merged": "com.crosspostme.app-debug-63:/xml_network_security_config.xml.flat",
-        "source": "com.crosspostme.app-main-65:/xml/network_security_config.xml"
+        "merged": "com.crosspostme.app-debug-70:/xml_backup_rules.xml.flat",
+        "source": "com.crosspostme.app-main-72:/xml/backup_rules.xml"
     },
     {
-        "merged": "com.crosspostme.app-debug-63:/mipmap_ic_launcher.png.flat",
-        "source": "com.crosspostme.app-main-65:/mipmap/ic_launcher.png"
+        "merged": "com.crosspostme.app-debug-70:/xml_network_security_config.xml.flat",
+        "source": "com.crosspostme.app-main-72:/xml/network_security_config.xml"
     },
     {
-        "merged": "com.crosspostme.app-debug-63:/xml_backup_rules.xml.flat",
-        "source": "com.crosspostme.app-main-65:/xml/backup_rules.xml"
+        "merged": "com.crosspostme.app-debug-70:/xml_data_extraction_rules.xml.flat",
+        "source": "com.crosspostme.app-main-72:/xml/data_extraction_rules.xml"
     },
     {
-        "merged": "com.crosspostme.app-debug-63:/xml_data_extraction_rules.xml.flat",
-        "source": "com.crosspostme.app-main-65:/xml/data_extraction_rules.xml"
+        "merged": "com.crosspostme.app-debug-70:/mipmap_ic_launcher_round.png.flat",
+        "source": "com.crosspostme.app-main-72:/mipmap/ic_launcher_round.png"
     }
 ]
