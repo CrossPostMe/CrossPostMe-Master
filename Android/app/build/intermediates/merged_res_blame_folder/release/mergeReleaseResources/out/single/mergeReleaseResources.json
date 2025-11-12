@@ -1,0 +1,22 @@
+[
+    {
+        "merged": "com.crosspostme.app-release-66:/mipmap_ic_launcher.png.flat",
+        "source": "com.crosspostme.app-main-67:/mipmap/ic_launcher.png"
+    },
+    {
+        "merged": "com.crosspostme.app-release-66:/xml_network_security_config.xml.flat",
+        "source": "com.crosspostme.app-main-67:/xml/network_security_config.xml"
+    },
+    {
+        "merged": "com.crosspostme.app-release-66:/xml_data_extraction_rules.xml.flat",
+        "source": "com.crosspostme.app-main-67:/xml/data_extraction_rules.xml"
+    },
+    {
+        "merged": "com.crosspostme.app-release-66:/mipmap_ic_launcher_round.png.flat",
+        "source": "com.crosspostme.app-main-67:/mipmap/ic_launcher_round.png"
+    },
+    {
+        "merged": "com.crosspostme.app-release-66:/xml_backup_rules.xml.flat",
+        "source": "com.crosspostme.app-main-67:/xml/backup_rules.xml"
+    }
+]

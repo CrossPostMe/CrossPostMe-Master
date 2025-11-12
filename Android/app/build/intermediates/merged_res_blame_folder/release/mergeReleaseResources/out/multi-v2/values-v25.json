@@ -1,0 +1,20 @@
+{
+    "logs": [
+        {
+            "outputFile": "com.crosspostme.app-mergeReleaseResources-64:/values-v25/values-v25.xml",
+            "map": [
+                {
+                    "source": "C:\\Users\\johnd\\.gradle\\caches\\8.13\\transforms\\994c19e1c9440a0a537228dd9e88cb1e\\transformed\\appcompat-1.6.1\\res\\values-v25\\values-v25.xml",
+                    "from": {
+                        "startLines": "2,3,4,6",
+                        "startColumns": "4,4,4,4",
+                        "startOffsets": "55,126,209,308",
+                        "endLines": "2,3,5,7",
+                        "endColumns": "70,82,12,12",
+                        "endOffsets": "121,204,303,414"
+                    }
+                }
+            ]
+        }
+    ]
+}
