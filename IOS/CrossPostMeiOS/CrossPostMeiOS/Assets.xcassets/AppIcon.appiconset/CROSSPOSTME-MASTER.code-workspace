@@ -1,0 +1,23 @@
+{
+	"folders": [
+		{
+			"path": "../../../../.."
+		},
+		{
+			"path": "../../../../../../CrossPostMe_MR"
+		},
+		{
+			"path": "../../../../../../../../../CrossPostMe-Supa"
+		}
+	],
+	"settings": {
+		"ruff.enable": true,
+		"ruff.organizeImports": true,
+		"ruff.fixAll": true,
+		"files.associations": {
+			"*.py": "python"
+		},
+		"powershell.cwd": "CROSSPOSTME-MASTER",
+		"java.configuration.updateBuildConfiguration": "interactive"
+	}
+}

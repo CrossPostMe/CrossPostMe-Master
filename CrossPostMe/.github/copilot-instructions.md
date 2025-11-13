@@ -1,16 +1,15 @@
 
+
 # CrossPostMe AI Agent Instructions
 
 Authoritative, actionable guidance for AI agents working in this repo.
 
-## Repository Layout
-
+## 1. Repository Layout
 - `app/backend/` — FastAPI backend (entry: `server.py`, routes: `routes/`, models: `models.py`).
 - `app/frontend/` — React frontend (CRA + CRACO, Tailwind, shadcn/ui).
-- Android/iOS folders: starter templates reference backend models/services for mobile clients.
+- `Android/`, `IOS/` — starter templates reference backend models/services for mobile clients.
 
-## Architecture & Data Flow
-
+## 2. Architecture & Data Flow
 - Backend migrated from MongoDB to Supabase (see README.md for migration notes). Ignore legacy Motor/MongoDB code unless maintaining old endpoints.
 - Backend entry: `app/backend/server.py` mounts routers from `routes/` and manages DB client lifecycle. Environment variables loaded via `.env` (see `.env.example`).
 - API routes: Each file in `app/backend/routes/` exports `router = APIRouter(...)` and is included in `server.py`.
@@ -18,8 +17,7 @@ Authoritative, actionable guidance for AI agents working in this repo.
 - Datetime fields are always serialized as ISO strings before DB insert; deserialize on read.
 - Query pattern: Use `.to_list(1000)` for list endpoints, then map results to Pydantic models.
 
-## Developer Workflows
-
+## 3. Developer Workflows
 ### Backend
 - Create venv, install, run dev server:
 	```powershell
@@ -41,6 +39,9 @@ Authoritative, actionable guidance for AI agents working in this repo.
 - UI: Compose from `src/components/` and `src/components/ui/` (shadcn/ui pattern).
 - Tests: `yarn test` (CRA runner), E2E: `yarn test:e2e` (Playwright)
 
+### Mobile (Android/iOS)
+- Reference backend models/services for API logic; port business logic as needed.
+
 ### Security & Environment
 - Copy `.env.example` to `.env` and generate encryption keys as described in `app/README.md`.
 - Never commit secrets. Use secrets managers for production (see README).
@@ -49,20 +50,20 @@ Authoritative, actionable guidance for AI agents working in this repo.
 - Use provided Dockerfiles and `docker-compose.yml` for containerized runs.
 - Backend loads `.env` via `dotenv` in `server.py`.
 
-## Project-Specific Patterns
+## 4. Project-Specific Patterns
 - Backend: Always reuse shared DB client from `server.py` or dependency-injected `get_db()`.
 - Frontend: Use `api.js` for all API calls; do not manually set auth headers.
 - Mobile: Reference backend models/services for API logic; port business logic as needed.
 
-## Key Example Files
+## 5. Key Example Files
 - `app/backend/routes/ads.py`, `platforms.py`, `ai.py` — router + DB usage
 - `app/backend/server.py` — app entry, CORS, DB client
 - `app/frontend/package.json`, `craco.config.js`, `src/components/` — frontend structure
 
-## CI/CD
+## 6. CI/CD
 - If adding CI, create `.github/workflows/` to run:
 	- `pip install -r app/backend/requirements.txt && pytest`
 	- `cd app/frontend && yarn install && yarn test --ci`
 
-## If Unclear
+## 7. Troubleshooting & Maintainer Guidance
 - If deployment target, DB credentials, or CI expectations are unclear, stop and ask a maintainer. List which manifests you inspected and your plan for the change.
