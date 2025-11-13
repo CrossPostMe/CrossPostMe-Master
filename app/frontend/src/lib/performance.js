@@ -143,8 +143,8 @@ export const reportWebVitals = (metric) => {
  */
 export const prefetchRoute = (pathname) => {
   const routePrefetchMap = {
-    '/pricing': () => import('../pages/Pricing'),
-    '/company': () => import('../pages/Company'),
+    '/pricing': () => import('../components/Pricing'),
+    '/company': () => import('../components/Company'),
     '/marketplace/dashboard': () => import('../pages/Dashboard'),
     '/marketplace/my-ads': () => import('../pages/MyAds'),
   };

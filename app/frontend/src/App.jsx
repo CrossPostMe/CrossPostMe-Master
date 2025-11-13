@@ -9,8 +9,6 @@ import Login, { AuthProvider, useAuth } from "./components/Login";
 
 // Lazy load non-critical homepage sections for faster initial paint
 const Hero = lazy(() => import("./components/Hero"));
-const PublicDescription = lazy(() => import("./components/PublicDescription"));
-const AISection = lazy(() => import("./components/AISection"));
 const SpeedSection = lazy(() => import("./components/SpeedSection"));
 const WhyChoose = lazy(() => import("./components/WhyChoose"));
 const Services = lazy(() => import("./components/Services"));
