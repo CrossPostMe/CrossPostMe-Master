@@ -3,7 +3,18 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#ffffff" />
+    <!-- Theme color meta tags are set dynamically for better browser support -->
+    <script>
+      (function() {
+        var theme = localStorage.getItem('theme');
+        var isDark = theme === 'dark' ||
+          (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches);
+        var meta = document.createElement('meta');
+        meta.name = 'theme-color';
+        meta.content = isDark ? '#18181b' : '#ffffff';
+        document.head.appendChild(meta);
+      })();
+    </script>
     <meta
       name="description"
       content="CrossPostMe - Sell Everywhere. Post once to all marketplaces automatically."
