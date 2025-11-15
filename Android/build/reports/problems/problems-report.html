@@ -9,13 +9,9 @@
                     <style type="text/css">
                 /*! normalize.css v7.0.0 | MIT License | github.com/necolas/normalize.css */
 html {
-line-height: 1.15;
--ms-text-size-adjust: 100%;
--webkit-text-size-adjust: 100%;
-text-size-adjust: 100%;
--moz-text-size-adjust: 100%;
--o-text-size-adjust: 100%;
-text-size-adjust: 100%;
+    line-height: 1.15;
+    -ms-text-size-adjust: 100%;
+    -webkit-text-size-adjust: 100%
 }
 
 body {
@@ -52,6 +48,7 @@ pre {
 
 a {
     background-color: transparent;
+    -webkit-text-decoration-skip: objects
 }
 
 abbr[title] {
@@ -134,8 +131,7 @@ button, select {
 }
 
 [type=reset], [type=submit], button, html [type=button] {
-    -webkit-appearance: button;
-    appearance: button;
+    -webkit-appearance: button
 }
 
 [type=button]::-moz-focus-inner, [type=reset]::-moz-focus-inner, [type=submit]::-moz-focus-inner, button::-moz-focus-inner {
@@ -177,19 +173,19 @@ textarea {
 [type=number]::-webkit-inner-spin-button, [type=number]::-webkit-outer-spin-button {
     height: auto
 }
+
 [type=search] {
     -webkit-appearance: textfield;
-    appearance: textfield;
     outline-offset: -2px
 }
 
 [type=search]::-webkit-search-cancel-button, [type=search]::-webkit-search-decoration {
-    -webkit-appearance: none;
+    -webkit-appearance: none
 }
+
 ::-webkit-file-upload-button {
     -webkit-appearance: button;
-    appearance: button;
-    font: inherit;
+    font: inherit
 }
 
 details, menu {
@@ -298,7 +294,6 @@ ul .tree-btn {
 }
 
 .invisible-text {
-    -webkit-user-select: all; /* Safari support */
     user-select: all; /* Allow the text to be selectable */
     color: transparent; /* Hide the text */
     text-indent: -9999px; /* Move the text out of view */
@@ -499,7 +494,6 @@ body {
     background-color: #ffffff;
     -webkit-text-size-adjust: 100%;
     -ms-text-size-adjust: 100%;
-    text-size-adjust: 100%;
     -webkit-font-smoothing: antialiased;
 }
 
@@ -631,7 +625,6 @@ code + .copy-button {
 }
 
 .java-exception-part-toggle {
-    -webkit-user-select: none;
     user-select: none;
     cursor: pointer;
     border-radius: 2px;
