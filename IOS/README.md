@@ -96,4 +96,4 @@ jobs:
           xcodebuild -scheme CrossPostMeApp -destination 'platform=iOS Simulator,name=iPhone 15' test
 ```
 
-This keeps the iOS codebase aligned with the backend contract while we continue fleshing out advanced messaging and health-monitoring
+This keeps the iOS codebase aligned with the backend contract while we continue fleshing out advanced messaging and health-monitoring features.
