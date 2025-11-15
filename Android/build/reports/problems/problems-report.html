@@ -11,7 +11,8 @@
 html {
     line-height: 1.15;
     -ms-text-size-adjust: 100%;
-    -webkit-text-size-adjust: 100%
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
 }
 
 body {
@@ -48,7 +49,6 @@ pre {
 
 a {
     background-color: transparent;
-    -webkit-text-decoration-skip: objects
 }
 
 abbr[title] {
@@ -626,6 +626,9 @@ code + .copy-button {
 
 .java-exception-part-toggle {
     user-select: none;
+    -webkit-user-select: none;
+        -webkit-user-select: none;
+        user-select: none; /* Prevent text selection */
     cursor: pointer;
     border-radius: 2px;
     padding: 0.1em 0.2em;
