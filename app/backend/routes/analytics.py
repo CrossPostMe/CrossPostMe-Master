@@ -345,7 +345,7 @@ async def get_growth_recommendations(
         if cached:
             return cached
 
-    data = _build_growth_recommendations(user_id)
+    data = await _build_growth_recommendations(user_id)
     _set_cached_recommendations(user_id, data)
     return data
 
@@ -408,27 +408,37 @@ async def _build_growth_recommendations(user_id: str) -> Dict[str, Any]:
 
     if client:
         try:
-            posted_ads_resp = (
-                client.table("posted_ads")
-                .select("*")
-                .eq("user_id", user_id)
-                .gte("created_at", lookback.isoformat())
-                .limit(1000)
-                .execute()
+            posted_ads_resp = await _run_supabase_query(
+                lambda: (
+                    client.table("posted_ads")
+                    .select("*")
+                    .eq("user_id", user_id)
+                    .gte("created_at", lookback.isoformat())
+                    .limit(1000)
+                    .execute()
+                ),
+                "Posted ads lookup",
             )
             posted_ads = posted_ads_resp.data or []
+        except TimeoutError as exc:
+            diagnostics.append(str(exc))
         except Exception as exc:
             diagnostics.append(f"Unable to load posted ads: {exc}")
 
         try:
-            listings_resp = (
-                client.table("listings")
-                .select("*")
-                .eq("user_id", user_id)
-                .limit(500)
-                .execute()
+            listings_resp = await _run_supabase_query(
+                lambda: (
+                    client.table("listings")
+                    .select("*")
+                    .eq("user_id", user_id)
+                    .limit(500)
+                    .execute()
+                ),
+                "Listings metadata lookup",
             )
             listings = listings_resp.data or []
+        except TimeoutError as exc:
+            diagnostics.append(str(exc))
         except Exception as exc:
             diagnostics.append(f"Unable to load listings metadata: {exc}")
     else:

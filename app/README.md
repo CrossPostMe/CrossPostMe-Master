@@ -106,6 +106,7 @@ Contact for developer questions: <crosspostme@gmail.com> — Phone: 623-777-9969
 - **Listing assistant** now detects missing fields, surfaces actionable suggestions, and exposes `/api/assistant/trending` for trending categories + best posting windows.
 - **Bulk generation** is concurrent, speeding up cross-post prep for OfferUp, Facebook, eBay, etc.
 - **Analytics** expose `/api/analytics/recommendations`, delivering prioritized growth strategies (fix low converting platforms, refresh stale listings, diversify catalog).
+- Both intelligence endpoints cache responses for 5 minutes, support `force_refresh=true` to bypass the cache, and enforce Supabase query timeouts so a slow DB never stalls the API flow.
 - Every response includes diagnostics (issues, data warnings) so clients can prompt the user to resolve blockers instead of silently failing.
 
 For investor and team updates, see INVESTOR_MARKET_ANALYSIS.md.
