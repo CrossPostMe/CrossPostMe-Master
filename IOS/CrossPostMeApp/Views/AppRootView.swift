@@ -24,10 +24,10 @@ private struct MainTabView: View {
             DashboardView()
                 .tabItem { Label("Status", systemImage: "list.bullet") }
 
-            MessagingPlaceholderView()
+            MessagingView()
                 .tabItem { Label("Message", systemImage: "paperplane") }
 
-            HealthPlaceholderView()
+            HealthView()
                 .tabItem { Label("Health", systemImage: "heart.circle") }
         }
         .overlay(alignment: .topTrailing) {
