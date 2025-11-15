@@ -80,7 +80,7 @@ The `CrossPostMeApp` directory now contains a SwiftUI-first architecture with de
     - `SupabaseRealtimeCoordinator` streams inserts/updates into the status feed and chat timeline; ViewModels merge records without requiring manual refresh.
     - The coordinator automatically disconnects on logout to conserve resources.
 
-    ### Health analytics dashboard
+   ### Health analytics dashboard
 
     1. **Backend endpoints**
 
@@ -97,7 +97,7 @@ The `CrossPostMeApp` directory now contains a SwiftUI-first architecture with de
       - Health charts rely on the built-in Swift Charts framework (iOS 16+). If you back-deploy earlier versions, add availability checks.
       - Ensure the backend timestamps are ISO-8601 strings so `Date` decoding succeeds.
 
-    ### Listing assistant & growth recommendations
+   ### Listing assistant & growth recommendations
 
     1. **Endpoints**
 
@@ -109,11 +109,13 @@ The `CrossPostMeApp` directory now contains a SwiftUI-first architecture with de
 
       - `GET /api/analytics/recommendations` produces prioritized growth playbooks (fix low-converting platforms, refresh stale listings, diversify catalog) and ships diagnostic notes when data is missing.
       - Display these recommendations inside the analytics tab or as cards beneath the listing assistant so users immediately see “what to do next.”
+      - Both recommendations + trending endpoints cache responses for 5 minutes; append `?force_refresh=true` when the user explicitly pulls to refresh so the backend recomputes immediately.
 
     1. **Handling issues**
 
       - Every assistant response includes structured `issues` (info/warning/critical). Surface these in SwiftUI as callouts and prompt the user to fix missing fields before copying.
       - If the backend reports `data_issues`, reflect that in the UI (e.g., “Connect Supabase to unlock trends”) rather than failing silently.
+      - Supabase queries now have server-side timeouts; be prepared to show a “data temporarily unavailable” toast and fall back to cached insights when diagnostics mention a timeout.
 
 ### Local development
 

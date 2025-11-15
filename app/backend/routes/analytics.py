@@ -5,13 +5,14 @@ Provides analytics and reporting endpoints for user data, listings performance,
 and platform metrics.
 """
 
+import asyncio
 import copy
 import logging
 import os
 import time
 from collections import defaultdict
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Tuple
+from typing import Any, Callable, Dict, List, Tuple
 
 from auth import get_current_user
 from db import get_typed_db

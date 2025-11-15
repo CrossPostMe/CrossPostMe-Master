@@ -7,17 +7,20 @@ ready-to-copy content.
 """
 
 import asyncio
+import copy
 import logging
 import os
 import time
-from datetime import datetime
-from typing import Any, Dict, List, Tuple
+from collections import defaultdict
+from datetime import datetime, timedelta
+from typing import Any, Callable, Dict, List, Tuple
 
 import openai
 from auth import get_current_user
 from db import get_typed_db
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
+from supabase_db import get_supabase
 
 logger = logging.getLogger(__name__)
 
