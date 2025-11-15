@@ -80,6 +80,23 @@ The `CrossPostMeApp` directory now contains a SwiftUI-first architecture with de
     - `SupabaseRealtimeCoordinator` streams inserts/updates into the status feed and chat timeline; ViewModels merge records without requiring manual refresh.
     - The coordinator automatically disconnects on logout to conserve resources.
 
+    ### Health analytics dashboard
+
+    1. **Backend endpoints**
+
+      - Expose `GET /api/health/history` returning an array of `{ timestamp, status, latency_ms }` records.
+      - Expose `GET /api/health/incidents` returning incidents with `{ id, title, details, started_at, resolved_at, severity }`.
+
+    1. **App behavior**
+
+      - `HealthAnalyticsViewModel` fetches history/incidents concurrently and powers Swift Charts visualizations (latency trend, uptime %, incident log).
+      - The new analytics cards live within `HealthView`; refreshing the page re-pulls both the realtime summary and historical analytics together.
+
+    1. **Prerequisites**
+
+      - Health charts rely on the built-in Swift Charts framework (iOS 16+). If you back-deploy earlier versions, add availability checks.
+      - Ensure the backend timestamps are ISO-8601 strings so `Date` decoding succeeds.
+
 ### Local development
 
 - Requires macOS/Xcode (the `xcodebuild` tool is unavailable on Windows).
