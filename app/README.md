@@ -101,4 +101,11 @@ Contact for developer questions: <crosspostme@gmail.com> — Phone: 623-777-9969
 - Backend and tests now run Supabase-only, simplifying cloud-native deployment.
 - Ready for integration with AWS, Azure, or Google for backup and scaling.
 
+## Intelligence upgrades (November 2025)
+
+- **Listing assistant** now detects missing fields, surfaces actionable suggestions, and exposes `/api/assistant/trending` for trending categories + best posting windows.
+- **Bulk generation** is concurrent, speeding up cross-post prep for OfferUp, Facebook, eBay, etc.
+- **Analytics** expose `/api/analytics/recommendations`, delivering prioritized growth strategies (fix low converting platforms, refresh stale listings, diversify catalog).
+- Every response includes diagnostics (issues, data warnings) so clients can prompt the user to resolve blockers instead of silently failing.
+
 For investor and team updates, see INVESTOR_MARKET_ANALYSIS.md.

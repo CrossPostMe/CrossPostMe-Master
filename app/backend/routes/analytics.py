@@ -3,8 +3,6 @@ Analytics Routes
 
 Provides analytics and reporting endpoints for user data, listings performance,
 and platform metrics.
-"""
-
 import logging
 import os
 from datetime import datetime, timedelta
@@ -329,3 +327,184 @@ async def get_growth_recommendations(
     """Return actionable growth strategies based on recent performance."""
 
     return _build_growth_recommendations(user_id)
+
+
+def _parse_datetime(value: Any) -> datetime | None:
+    if not value:
+        return None
+    if isinstance(value, datetime):
+        return value
+    try:
+        text = str(value)
+        if text.endswith("Z"):
+            text = text.replace("Z", "+00:00")
+        return datetime.fromisoformat(text)
+    except Exception:
+        return None
+
+
+def _build_growth_recommendations(user_id: str) -> Dict[str, Any]:
+    from supabase_db import get_supabase
+
+    diagnostics: List[str] = []
+    recommendations: List[Dict[str, Any]] = []
+    timeframe_days = 30
+    lookback = datetime.utcnow() - timedelta(days=timeframe_days)
+
+    client = get_supabase()
+    posted_ads: List[Dict[str, Any]] = []
+    listings: List[Dict[str, Any]] = []
+
+    if client:
+        try:
+            posted_ads_resp = (
+                client.table("posted_ads")
+                .select("*")
+                .eq("user_id", user_id)
+                .gte("created_at", lookback.isoformat())
+                .limit(1000)
+                .execute()
+            )
+            posted_ads = posted_ads_resp.data or []
+        except Exception as exc:
+            diagnostics.append(f"Unable to load posted ads: {exc}")
+
+        try:
+            listings_resp = (
+                client.table("listings")
+                .select("*")
+                .eq("user_id", user_id)
+                .limit(500)
+                .execute()
+            )
+            listings = listings_resp.data or []
+        except Exception as exc:
+            diagnostics.append(f"Unable to load listings metadata: {exc}")
+    else:
+        diagnostics.append("Supabase not configured; returning generic recommendations.")
+
+    platform_stats = defaultdict(
+        lambda: {"count": 0, "views": 0.0, "leads": 0.0, "clicks": 0.0}
+    )
+    stale_listings = 0
+    days_since_last_post: List[int] = []
+
+    for item in posted_ads:
+        platform = (item.get("platform") or "unspecified").lower()
+        platform_stats[platform]["count"] += 1
+        platform_stats[platform]["views"] += float(item.get("views", 0) or 0)
+        platform_stats[platform]["leads"] += float(item.get("leads", 0) or 0)
+        platform_stats[platform]["clicks"] += float(item.get("clicks", 0) or 0)
+
+        created_at = _parse_datetime(item.get("created_at"))
+        if created_at:
+            delta_days = max(0, (datetime.utcnow() - created_at).days)
+            days_since_last_post.append(delta_days)
+            if delta_days > 10 and (item.get("leads") in (0, None)):
+                stale_listings += 1
+
+    total_posts = sum(stat["count"] for stat in platform_stats.values())
+    avg_conversion = 0.0
+    if total_posts:
+        avg_conversion = sum(
+            ((stat["leads"] + 1) / (stat["views"] + 1)) * stat["count"]
+            for stat in platform_stats.values()
+        ) / total_posts
+
+    if total_posts == 0:
+        recommendations.append(
+            {
+                "priority": "high",
+                "title": "Publish at least 3 listings",
+                "detail": "No recent posting activity detected in the last 30 days.",
+                "action": "Create new listings or import existing ones to unlock analytics.",
+            }
+        )
+    else:
+        slow_platforms = []
+        strong_platforms = []
+        for platform, stat in platform_stats.items():
+            conversion = (stat["leads"] + 1) / (stat["views"] + 1)
+            entry = {
+                "platform": platform,
+                "conversion": round(conversion, 3),
+                "posts": stat["count"],
+            }
+            if conversion < 0.03 and stat["views"] >= 20:
+                slow_platforms.append(entry)
+            if conversion >= 0.1 and stat["count"] >= 3:
+                strong_platforms.append(entry)
+
+        if slow_platforms:
+            slow_platforms.sort(key=lambda item: item["conversion"])
+            target = slow_platforms[0]
+            recommendations.append(
+                {
+                    "priority": "high",
+                    "title": f"Improve conversion on {target['platform'].title()}",
+                    "detail": f"Conversion is {target['conversion']*100:.1f}% with {target['posts']} posts.",
+                    "action": "Refresh photos, tighten pricing, and respond faster to leads on this platform.",
+                }
+            )
+
+        if strong_platforms:
+            strong_platforms.sort(key=lambda item: item["conversion"], reverse=True)
+            hero = strong_platforms[0]
+            recommendations.append(
+                {
+                    "priority": "medium",
+                    "title": f"Scale {hero['platform'].title()} listings",
+                    "detail": f"This channel converts at {hero['conversion']*100:.1f}% across {hero['posts']} posts.",
+                    "action": "Clone top-performing templates and double the weekly volume.",
+                }
+            )
+
+    if stale_listings:
+        recommendations.append(
+            {
+                "priority": "medium",
+                "title": "Refresh stale inventory",
+                "detail": f"{stale_listings} posts have no leads after 10 days.",
+                "action": "Update photos, lower prices, or mark as sold to maintain trust signals.",
+            }
+        )
+
+    if listings:
+        categories = defaultdict(int)
+        for listing in listings:
+            category = (listing.get("category") or "uncategorized").lower()
+            categories[category] += 1
+        if len(categories) == 1:
+            sole = next(iter(categories))
+            recommendations.append(
+                {
+                    "priority": "medium",
+                    "title": "Diversify catalog",
+                    "detail": f"Only {sole} listings detected; adding complementary categories increases buyer reach.",
+                    "action": "Import at least one new category to improve discovery algorithms.",
+                }
+            )
+
+    posting_cadence = min(days_since_last_post) if days_since_last_post else None
+    if posting_cadence and posting_cadence > 3:
+        recommendations.append(
+            {
+                "priority": "low",
+                "title": "Increase posting cadence",
+                "detail": f"Average gap between posts is {posting_cadence} days.",
+                "action": "Schedule daily micro-posts or republish top listings automatically.",
+            }
+        )
+
+    return {
+        "generated_at": datetime.utcnow().isoformat(),
+        "timeframe_days": timeframe_days,
+        "summary": {
+            "total_posts": total_posts,
+            "avg_conversion": round(avg_conversion, 3),
+            "active_platforms": len(platform_stats),
+            "stale_listings": stale_listings,
+        },
+        "recommendations": recommendations,
+        "diagnostics": diagnostics,
+    }

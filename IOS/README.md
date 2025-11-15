@@ -97,6 +97,24 @@ The `CrossPostMeApp` directory now contains a SwiftUI-first architecture with de
       - Health charts rely on the built-in Swift Charts framework (iOS 16+). If you back-deploy earlier versions, add availability checks.
       - Ensure the backend timestamps are ISO-8601 strings so `Date` decoding succeeds.
 
+    ### Listing assistant & growth recommendations
+
+    1. **Endpoints**
+
+      - `POST /api/assistant/generate/{platform}` now returns `suggestions`, `issues`, and a `processing_time_ms` diagnostic so the app can surface inline warnings before the user taps “Copy”.
+      - `POST /api/assistant/generate/bulk` runs platform requests concurrently for much faster multi-channel drafts.
+      - `GET /api/assistant/trending?days=14` bundles trending categories, peak posting windows, and actionable growth actions for the assistant home screen.
+
+    1. **Analytics tie-in**
+
+      - `GET /api/analytics/recommendations` produces prioritized growth playbooks (fix low-converting platforms, refresh stale listings, diversify catalog) and ships diagnostic notes when data is missing.
+      - Display these recommendations inside the analytics tab or as cards beneath the listing assistant so users immediately see “what to do next.”
+
+    1. **Handling issues**
+
+      - Every assistant response includes structured `issues` (info/warning/critical). Surface these in SwiftUI as callouts and prompt the user to fix missing fields before copying.
+      - If the backend reports `data_issues`, reflect that in the UI (e.g., “Connect Supabase to unlock trends”) rather than failing silently.
+
 ### Local development
 
 - Requires macOS/Xcode (the `xcodebuild` tool is unavailable on Windows).
