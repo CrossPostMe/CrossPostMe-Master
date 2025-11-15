@@ -8,7 +8,7 @@ ready-to-copy content.
 
 import logging
 import os
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Tuple
 
 import openai
 from auth import get_current_user
@@ -71,6 +71,18 @@ class GeneratedContent(BaseModel):
     seo_keywords: List[str]
     character_counts: Dict[str, int]
     tips: List[str]
+    suggestions: List[str] = Field(default_factory=list)
+    issues: List["AssistantIssue"] = Field(default_factory=list)
+    processing_time_ms: int | None = Field(default=None)
+
+
+class AssistantIssue(BaseModel):
+    """Issues or warnings detected while preparing content."""
+
+    severity: str = Field(default="info", description="info|warning|critical")
+    field: str | None = None
+    message: str
+    recommendation: str | None = None
 
 
 class BulkGenerateRequest(BaseModel):
@@ -168,8 +180,8 @@ async def generate_optimized_title(
     prompt = f"""Generate an optimized product title for {platform}.
 
 Original title: {original_title}
-Brand: {brand or 'N/A'}
-Tags: {', '.join(tags or [])}
+Brand: {brand or "N/A"}
+Tags: {", ".join(tags or [])}
 
 Requirements:
 - Maximum {max_length} characters
@@ -217,20 +229,12 @@ async def generate_optimized_description(
     prompt = f"""Generate a compelling product description for {platform}.
 
 Product: {title}
-Brand: {brand or 'Generic'}
+Brand: {brand or "Generic"}
 Condition: {condition}
 Price: ${price:.2f}
-Original description: {original_description or 'None provided'}
+Original description: {original_description or "None provided"}
 
 Requirements:
-- Maximum {max_length} characters
-- Style: {style}
-- Condition: {condition}
-- Emoji allowed: {platform_config.emoji_allowed}
-- HTML allowed: {platform_config.html_allowed}
-- Highlight key features and benefits
-- Create urgency (limited availability, great deal)
-- End with call-to-action
 
 Return ONLY the description, nothing else."""
 
@@ -251,6 +255,228 @@ Return ONLY the description, nothing else."""
             : platform_config.description_max_length
         ]
 
+    def _parse_datetime(value: Any) -> datetime | None:
+        if not value:
+            return None
+        if isinstance(value, datetime):
+            return value
+        try:
+            text = str(value)
+            if text.endswith("Z"):
+                text = text.replace("Z", "+00:00")
+            return datetime.fromisoformat(text)
+        except Exception:
+            return None
+
+    def _calculate_trending_insights(
+        user_id: str, days: int = 14
+    ) -> Tuple[Dict[str, Any], List[str]]:
+        lookback = datetime.utcnow() - timedelta(days=days)
+        category_stats: Dict[str, Dict[str, Any]] = defaultdict(
+            lambda: {"count": 0, "views": 0, "leads": 0, "platforms": defaultdict(int)}
+        )
+        hour_stats: Dict[int, Dict[str, float]] = defaultdict(
+            lambda: {"count": 0, "leads": 0}
+        )
+        platform_stats: Dict[str, Dict[str, float]] = defaultdict(
+            lambda: {"count": 0, "views": 0, "leads": 0}
+        )
+        issues: List[str] = []
+
+        client = get_supabase()
+        listings_data: List[Dict[str, Any]] = []
+        posted_ads: List[Dict[str, Any]] = []
+
+        if client:
+            try:
+                listings_resp = (
+                    client.table("listings")
+                    .select("*")
+                    .eq("user_id", user_id)
+                    .gte("created_at", lookback.isoformat())
+                    .limit(500)
+                    .execute()
+                )
+                listings_data = listings_resp.data or []
+            except Exception as exc:
+                issues.append(f"Unable to load listings from Supabase: {exc}")
+
+            try:
+                posted_resp = (
+                    client.table("posted_ads")
+                    .select("*")
+                    .eq("user_id", user_id)
+                    .gte("created_at", lookback.isoformat())
+                    .limit(1000)
+                    .execute()
+                )
+                posted_ads = posted_resp.data or []
+            except Exception as exc:
+                issues.append(f"Unable to load posted ads: {exc}")
+        else:
+            issues.append(
+                "Supabase client not configured; returning heuristic recommendations."
+            )
+
+        for listing in listings_data:
+            category = (listing.get("category") or "uncategorized").lower()
+            category_stats[category]["count"] += 1
+            platform_hint = (
+                listing.get("platform")
+                or listing.get("platform_hint")
+                or listing.get("primary_platform")
+                or "unspecified"
+            )
+            category_stats[category]["platforms"][platform_hint] += 1
+            created_at = _parse_datetime(listing.get("created_at"))
+            if created_at and created_at >= lookback:
+                hour_stats[created_at.hour]["count"] += 1
+
+        for posted in posted_ads:
+            category = (
+                posted.get("category")
+                or posted.get("listing_category")
+                or posted.get("tags_category")
+                or "uncategorized"
+            ).lower()
+            platform = (posted.get("platform") or "unspecified").lower()
+            views = float(posted.get("views", 0) or 0)
+            leads = float(posted.get("leads", 0) or 0)
+
+            category_stats[category]["views"] += views
+            category_stats[category]["leads"] += leads
+            category_stats[category]["platforms"][platform] += 1
+            platform_stats[platform]["count"] += 1
+            platform_stats[platform]["views"] += views
+            platform_stats[platform]["leads"] += leads
+
+            created_at = _parse_datetime(posted.get("created_at"))
+            if created_at and created_at >= lookback:
+                hour_stats[created_at.hour]["leads"] += leads or 0
+                hour_stats[created_at.hour]["count"] += 1
+
+        if not category_stats:
+            # provide generic insights if no data
+            default_categories = [cfg.platform for cfg in PLATFORM_CONFIGS.values()]
+            return (
+                {
+                    "category_trends": [
+                        {
+                            "category": name,
+                            "share_of_posts": round(1 / len(default_categories), 3),
+                            "demand_score": 0.5,
+                            "recommendation": "Post consistently to gather performance data.",
+                        }
+                        for name in default_categories
+                    ],
+                    "peak_activity": [
+                        {"hour": 20, "label": "8 PM", "confidence": "low"}
+                    ],
+                    "platform_mix": [
+                        {
+                            "platform": key,
+                            "share": round(1 / len(PLATFORM_CONFIGS), 3),
+                            "conversion_rate": 0.0,
+                        }
+                        for key in PLATFORM_CONFIGS.keys()
+                    ],
+                    "growth_actions": [
+                        "Connect your marketplaces to unlock personalized recommendations.",
+                        "Import historical listings so we can calculate momentum trends.",
+                    ],
+                },
+                issues,
+            )
+
+        total_posts = sum(stat["count"] for stat in category_stats.values()) or 1
+        category_trends = []
+        for category, stat in category_stats.items():
+            conversion = (stat["leads"] + 1) / (stat["views"] + 1)
+            demand_score = round(
+                ((stat["count"] / total_posts) * 0.6) + (conversion * 0.4), 3
+            )
+            recommendation = (
+                "Double down on this category; it converts above average."
+                if conversion >= 0.08
+                else "Improve photos & pricing to raise conversion."
+            )
+            category_trends.append(
+                {
+                    "category": category.title(),
+                    "share_of_posts": round(stat["count"] / total_posts, 3),
+                    "demand_score": demand_score,
+                    "conversion_rate": round(conversion, 3),
+                    "leading_platforms": sorted(
+                        stat["platforms"].keys(),
+                        key=lambda key: stat["platforms"][key],
+                        reverse=True,
+                    )[:3],
+                    "recommendation": recommendation,
+                }
+            )
+
+        category_trends.sort(key=lambda item: item["demand_score"], reverse=True)
+
+        peak_activity = []
+        for hour, stat in sorted(
+            hour_stats.items(), key=lambda kv: kv[1]["leads"], reverse=True
+        )[:4]:
+            label = f"{hour:02d}:00"
+            confidence = (
+                "high"
+                if stat["leads"] >= 5
+                else "medium"
+                if stat["leads"] >= 2
+                else "low"
+            )
+            peak_activity.append(
+                {"hour": hour, "label": label, "confidence": confidence}
+            )
+
+        platform_mix = []
+        total_platform_posts = (
+            sum(stat["count"] for stat in platform_stats.values()) or 1
+        )
+        for platform, stat in platform_stats.items():
+            conversion = (stat["leads"] + 1) / (stat["views"] + 1)
+            platform_mix.append(
+                {
+                    "platform": platform,
+                    "share": round(stat["count"] / total_platform_posts, 3),
+                    "conversion_rate": round(conversion, 3),
+                }
+            )
+
+        platform_mix.sort(key=lambda item: item["conversion_rate"], reverse=True)
+
+        growth_actions: List[str] = []
+        if category_trends:
+            best = category_trends[0]
+            growth_actions.append(
+                f"Create 3 new {best['category']} listings this week; demand score {best['demand_score']}."
+            )
+        if peak_activity:
+            slot = peak_activity[0]
+            growth_actions.append(
+                f"Schedule posts around {slot['label']} when buyers are most active ({slot['confidence']} confidence)."
+            )
+        underperformers = [p for p in platform_mix if p["conversion_rate"] < 0.05]
+        if underperformers:
+            names = ", ".join(p["platform"].title() for p in underperformers[:3])
+            growth_actions.append(
+                f"Refresh copy & pricing on {names}; conversion is lagging below 5%."
+            )
+
+        return (
+            {
+                "category_trends": category_trends,
+                "peak_activity": peak_activity,
+                "platform_mix": platform_mix,
+                "growth_actions": growth_actions,
+            },
+            issues,
+        )
+
 
 async def generate_tags(
     title: str, description: str | None, category: str | None
@@ -264,8 +490,8 @@ async def generate_tags(
     prompt = f"""Generate 10-15 SEO-friendly tags/keywords for this product:
 
 Title: {title}
-Description: {description or 'N/A'}
-Category: {category or 'N/A'}
+Description: {description or "N/A"}
+Category: {category or "N/A"}
 
 Requirements:
 - Relevant search terms
@@ -345,24 +571,93 @@ def generate_platform_tips(platform: str, listing: ListingInput) -> List[str]:
     return tips_map.get(platform, ["✅ Take clear photos", "💬 Respond quickly"])
 
 
+def detect_listing_issues(
+    listing: ListingInput, config: PlatformRequirements
+) -> List[AssistantIssue]:
+    """Surface potential blockers or optimizations before generating content."""
+
+    issues: List[AssistantIssue] = []
+
+    for required in config.required_fields:
+        value = getattr(listing, required, None)
+        if value in (None, "", [], 0):
+            issues.append(
+                AssistantIssue(
+                    severity="warning",
+                    field=required,
+                    message=f"{required.title()} is required for {config.platform}",
+                    recommendation=f"Add {required} before publishing to {config.platform}.",
+                )
+            )
+
+    if listing.description and len(listing.description) > config.description_max_length:
+        issues.append(
+            AssistantIssue(
+                severity="warning",
+                field="description",
+                message="Description exceeds platform character limit",
+                recommendation=f"Trim description to under {config.description_max_length} characters.",
+            )
+        )
+
+    if len(listing.images) < 2:
+        issues.append(
+            AssistantIssue(
+                severity="info",
+                field="images",
+                message="Adding more images improves conversion",
+                recommendation="Upload at least 3 well-lit photos",
+            )
+        )
+
+    if listing.price <= 0:
+        issues.append(
+            AssistantIssue(
+                severity="critical",
+                field="price",
+                message="Price must be greater than zero",
+                recommendation="Set a realistic price before publishing",
+            )
+        )
+
+    return issues
+
+
+def build_dynamic_suggestions(listing: ListingInput, platform_key: str) -> List[str]:
+    """Generate lightweight, human-readable suggestions."""
+
+    suggestions: List[str] = []
+
+    if listing.brand:
+        suggestions.append(
+            f"Lead with {listing.brand} in the first sentence for trust."
+        )
+
+    if listing.condition.lower() != "new":
+        suggestions.append("Clarify wear/tear details to pre-empt buyer questions.")
+
+    if platform_key in {"facebook", "offerup"} and not listing.tags:
+        suggestions.append("Add at least 5 tags so local buyers can discover the item.")
+
+    if len(listing.images) < 3:
+        suggestions.append("Upload 3-5 photos: front, back, close-up, and scale shot.")
+
+    if listing.category and listing.category.lower() in {"electronics", "appliances"}:
+        suggestions.append(
+            "Mention warranty status or receipts for high-value electronics."
+        )
+
+    return suggestions
+
+
 # ============================================================================
 # API Endpoints
 # ============================================================================
 
 
-@router.post("/generate/{platform}", response_model=GeneratedContent)
-async def generate_for_platform(
-    platform: str,
-    listing: ListingInput,
-    current_user: str = Depends(get_current_user),
+async def _generate_content_for_platform(
+    platform: str, listing: ListingInput
 ) -> GeneratedContent:
-    """
-    Generate optimized listing content for a specific platform.
-
-    Uses AI to create platform-specific titles, descriptions, and tags
-    that are ready to copy and paste.
-    """
-
     platform_key = platform.lower()
     if platform_key not in PLATFORM_CONFIGS:
         raise HTTPException(
@@ -371,8 +666,11 @@ async def generate_for_platform(
         )
 
     config = PLATFORM_CONFIGS[platform_key]
+    start_time = time.perf_counter()
 
-    # Generate optimized content
+    issues = detect_listing_issues(listing, config)
+    suggestions = build_dynamic_suggestions(listing, platform_key)
+
     title = await generate_optimized_title(
         listing.title, config, listing.brand, listing.tags
     )
@@ -387,10 +685,10 @@ async def generate_for_platform(
     )
 
     tags = await generate_tags(title, description, listing.category)
-
     price_formatted = format_price_for_platform(listing.price, platform_key)
-
     tips = generate_platform_tips(platform_key, listing)
+
+    processing_ms = int((time.perf_counter() - start_time) * 1000)
 
     return GeneratedContent(
         platform=config.platform,
@@ -406,7 +704,26 @@ async def generate_for_platform(
             "description_max": config.description_max_length,
         },
         tips=tips,
+        suggestions=suggestions,
+        issues=issues,
+        processing_time_ms=processing_ms,
     )
+
+
+@router.post("/generate/{platform}", response_model=GeneratedContent)
+async def generate_for_platform(
+    platform: str,
+    listing: ListingInput,
+    current_user: str = Depends(get_current_user),
+) -> GeneratedContent:
+    """
+    Generate optimized listing content for a specific platform.
+
+    Uses AI to create platform-specific titles, descriptions, and tags
+    that are ready to copy and paste.
+    """
+
+    return await _generate_content_for_platform(platform, listing)
 
 
 @router.post("/generate/bulk", response_model=List[GeneratedContent])
@@ -420,19 +737,19 @@ async def generate_bulk(
     Perfect for cross-posting - generates all listings in one API call.
     """
 
-    results = []
+    async def _task(platform: str):
+        return await _generate_content_for_platform(platform, request.listing)
 
-    for platform in request.platforms:
-        try:
-            generated = await generate_for_platform(
-                platform, request.listing, current_user
-            )
-            results.append(generated)
-        except HTTPException:
-            # Skip unsupported platforms
+    tasks = [_task(platform) for platform in request.platforms]
+    results: List[GeneratedContent] = []
+
+    for outcome in await asyncio.gather(*tasks, return_exceptions=True):
+        if isinstance(outcome, GeneratedContent):
+            results.append(outcome)
+        elif isinstance(outcome, HTTPException):
             continue
-        except Exception as e:
-            logger.error(f"Failed to generate for {platform}: {e}")
+        elif isinstance(outcome, Exception):
+            logger.error(f"Bulk generation task failed: {outcome}")
             continue
 
     if not results:
@@ -442,6 +759,24 @@ async def generate_bulk(
         )
 
     return results
+
+
+@router.get("/trending")
+async def get_trending_recommendations(
+    days: int = 14,
+    current_user: str = Depends(get_current_user),
+) -> Dict[str, Any]:
+    """Return trending categories, peak posting windows, and growth actions."""
+
+    insights, issues = _calculate_trending_insights(current_user, days)
+    insights.update(
+        {
+            "timeframe_days": days,
+            "generated_at": datetime.utcnow().isoformat(),
+            "data_issues": issues,
+        }
+    )
+    return insights
 
 
 @router.get("/platforms")
@@ -487,7 +822,7 @@ async def optimize_price(
     prompt = f"""Analyze this product and suggest optimal pricing:
 
 Product: {title}
-Category: {category or 'General'}
+Category: {category or "General"}
 Condition: {condition}
 Current Price: ${current_price:.2f}
 
