@@ -25,3 +25,41 @@ Start by copying over:
 - Documentation
 
 Let me know if you want a full starter template for Flutter or React Native!
+
+## Getting started with the SwiftUI app
+
+The `CrossPostMeApp` directory now contains a SwiftUI-first architecture with dedicated folders for Models, Networking, Services, Storage, ViewModels, and Views.
+
+### Local development
+
+```bash
+# Run from the repository root on macOS
+cd IOS/CrossPostMeApp
+xcodebuild -scheme CrossPostMeApp -destination 'platform=iOS Simulator,name=iPhone 15' build
+```
+
+- Update `Resources/Config.plist` with your API base URL before running the simulator.
+- The app persists auth tokens via Keychain and restores the last signed-in user.
+
+### Suggested CI step
+
+Add a macOS runner in GitHub Actions to prevent regressions:
+
+```yaml
+name: ios-ci
+on:
+	pull_request:
+		paths:
+			- 'IOS/**'
+jobs:
+	build:
+		runs-on: macos-14
+		steps:
+			- uses: actions/checkout@v4
+			- name: Build & test
+				run: |
+					cd IOS/CrossPostMeApp
+					xcodebuild -scheme CrossPostMeApp -destination 'platform=iOS Simulator,name=iPhone 15' test
+```
+
+This keeps the iOS codebase aligned with the backend contract while we continue fleshing out advanced messaging and health-monitoring features.
