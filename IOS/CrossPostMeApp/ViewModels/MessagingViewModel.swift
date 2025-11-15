@@ -34,6 +34,7 @@ final class MessagingViewModel: ObservableObject {
         defer { isRefreshingHistory = false }
         do {
             chatHistory = try await service.fetchChatHistory(authToken: token)
+            NotificationManager.shared.recordLatestMessage(chatHistory.first?.id)
         } catch {
             errorMessage = (error as? APIError)?.localizedDescription ?? error.localizedDescription
         }

@@ -15,16 +15,19 @@ final class AppShellViewModel: ObservableObject {
     private let authService: AuthServicing
     private let tokenStore: TokenStore
     private let userDefaults: UserDefaults
+    private let notificationCoordinator: NotificationCoordinating
 
     private let tokenKey = "crosspostme.auth.token"
     private let userKey = "crosspostme.auth.user"
 
     init(authService: AuthServicing = AuthService(),
          tokenStore: TokenStore = SecureStore(),
-         userDefaults: UserDefaults = .standard) {
+         userDefaults: UserDefaults = .standard,
+         notificationCoordinator: NotificationCoordinating = NotificationManager.shared) {
         self.authService = authService
         self.tokenStore = tokenStore
         self.userDefaults = userDefaults
+        self.notificationCoordinator = notificationCoordinator
     }
 
     var isAuthenticated: Bool {
@@ -53,6 +56,7 @@ final class AppShellViewModel: ObservableObject {
                 return
             }
             authState = .authenticated(user: user, token: token)
+            notificationCoordinator.updateAuthToken(token)
         } catch {
             authState = .signedOut
         }
@@ -64,6 +68,8 @@ final class AppShellViewModel: ObservableObject {
             let response = try await authService.login(request: .init(username: username, password: password))
             try persistSession(response)
             authState = .authenticated(user: response.user, token: response.accessToken)
+            notificationCoordinator.updateAuthToken(response.accessToken)
+            notificationCoordinator.requestAuthorizationIfNeeded()
         } catch {
             activeError = (error as? APIError)?.localizedDescription ?? error.localizedDescription
         }
@@ -75,6 +81,8 @@ final class AppShellViewModel: ObservableObject {
             let response = try await authService.register(request: .init(username: username, email: email, password: password))
             try persistSession(response)
             authState = .authenticated(user: response.user, token: response.accessToken)
+            notificationCoordinator.updateAuthToken(response.accessToken)
+            notificationCoordinator.requestAuthorizationIfNeeded()
         } catch {
             activeError = (error as? APIError)?.localizedDescription ?? error.localizedDescription
         }
@@ -84,6 +92,7 @@ final class AppShellViewModel: ObservableObject {
         try? tokenStore.deleteToken(for: tokenKey)
         userDefaults.removeObject(forKey: userKey)
         authState = .signedOut
+        notificationCoordinator.updateAuthToken(nil)
     }
 
     // MARK: - Private helpers

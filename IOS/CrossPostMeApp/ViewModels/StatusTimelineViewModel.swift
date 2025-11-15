@@ -35,6 +35,7 @@ final class StatusTimelineViewModel: ObservableObject {
         defer { isLoading = false }
         do {
             statuses = try await service.fetchStatuses(authToken: token)
+            NotificationManager.shared.recordLatestStatus(statuses.first?.id)
         } catch {
             errorMessage = (error as? APIError)?.localizedDescription ?? error.localizedDescription
         }
@@ -47,6 +48,7 @@ final class StatusTimelineViewModel: ObservableObject {
         do {
             let created = try await service.createStatus(text: trimmed, authToken: token)
             statuses.insert(created, at: 0)
+            NotificationManager.shared.recordLatestStatus(created.id)
             composerText = ""
         } catch {
             errorMessage = (error as? APIError)?.localizedDescription ?? error.localizedDescription

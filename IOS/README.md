@@ -30,6 +30,22 @@ Let me know if you want a full starter template for Flutter or React Native!
 
 The `CrossPostMeApp` directory now contains a SwiftUI-first architecture with dedicated folders for Models, Networking, Services, Storage, ViewModels, and Views.
 
+### Push notifications & background refresh
+
+1. **Apple Developer setup**
+
+  - Enable *Push Notifications* and *Background Modes → Remote notifications + Background fetch* in the Xcode target capabilities.
+  - Register the background task identifier `com.crosspostme.app.refresh` under `BGTaskSchedulerPermittedIdentifiers` in `Info.plist`.
+
+1. **Server hook**
+
+  - Implement `POST /api/device-tokens` to store the APNs token (sample payload `{ token, platform })`.
+  - Trigger APNs (e.g., via Supabase function or Azure Function) when new statuses or chat messages arrive.
+
+1. **App behavior**
+
+  - `NotificationManager` now handles permission prompts, APNs token registration, local notifications, and background refresh fetches.
+
 ### Local development
 
 - Requires macOS/Xcode (the `xcodebuild` tool is unavailable on Windows).
