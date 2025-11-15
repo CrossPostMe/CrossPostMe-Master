@@ -6,14 +6,17 @@ Helps users post to platforms without APIs by generating optimized,
 ready-to-copy content.
 """
 
+import asyncio
 import logging
 import os
+import time
+from datetime import datetime
 from typing import Any, Dict, List, Tuple
 
 import openai
 from auth import get_current_user
 from db import get_typed_db
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
@@ -156,6 +159,10 @@ PLATFORM_CONFIGS = {
     ),
 }
 
+TRENDING_CACHE_TTL_SECONDS = 300
+_TRENDING_CACHE: Dict[Tuple[str, int], Tuple[float, Dict[str, Any], List[str]]] = {}
+SUPABASE_QUERY_TIMEOUT_SECONDS = float(os.getenv("SUPABASE_QUERY_TIMEOUT", "8"))
+
 
 # ============================================================================
 # AI Generation Functions
@@ -254,228 +261,6 @@ Return ONLY the description, nothing else."""
         return (original_description or f"For sale: {title}")[
             : platform_config.description_max_length
         ]
-
-    def _parse_datetime(value: Any) -> datetime | None:
-        if not value:
-            return None
-        if isinstance(value, datetime):
-            return value
-        try:
-            text = str(value)
-            if text.endswith("Z"):
-                text = text.replace("Z", "+00:00")
-            return datetime.fromisoformat(text)
-        except Exception:
-            return None
-
-    def _calculate_trending_insights(
-        user_id: str, days: int = 14
-    ) -> Tuple[Dict[str, Any], List[str]]:
-        lookback = datetime.utcnow() - timedelta(days=days)
-        category_stats: Dict[str, Dict[str, Any]] = defaultdict(
-            lambda: {"count": 0, "views": 0, "leads": 0, "platforms": defaultdict(int)}
-        )
-        hour_stats: Dict[int, Dict[str, float]] = defaultdict(
-            lambda: {"count": 0, "leads": 0}
-        )
-        platform_stats: Dict[str, Dict[str, float]] = defaultdict(
-            lambda: {"count": 0, "views": 0, "leads": 0}
-        )
-        issues: List[str] = []
-
-        client = get_supabase()
-        listings_data: List[Dict[str, Any]] = []
-        posted_ads: List[Dict[str, Any]] = []
-
-        if client:
-            try:
-                listings_resp = (
-                    client.table("listings")
-                    .select("*")
-                    .eq("user_id", user_id)
-                    .gte("created_at", lookback.isoformat())
-                    .limit(500)
-                    .execute()
-                )
-                listings_data = listings_resp.data or []
-            except Exception as exc:
-                issues.append(f"Unable to load listings from Supabase: {exc}")
-
-            try:
-                posted_resp = (
-                    client.table("posted_ads")
-                    .select("*")
-                    .eq("user_id", user_id)
-                    .gte("created_at", lookback.isoformat())
-                    .limit(1000)
-                    .execute()
-                )
-                posted_ads = posted_resp.data or []
-            except Exception as exc:
-                issues.append(f"Unable to load posted ads: {exc}")
-        else:
-            issues.append(
-                "Supabase client not configured; returning heuristic recommendations."
-            )
-
-        for listing in listings_data:
-            category = (listing.get("category") or "uncategorized").lower()
-            category_stats[category]["count"] += 1
-            platform_hint = (
-                listing.get("platform")
-                or listing.get("platform_hint")
-                or listing.get("primary_platform")
-                or "unspecified"
-            )
-            category_stats[category]["platforms"][platform_hint] += 1
-            created_at = _parse_datetime(listing.get("created_at"))
-            if created_at and created_at >= lookback:
-                hour_stats[created_at.hour]["count"] += 1
-
-        for posted in posted_ads:
-            category = (
-                posted.get("category")
-                or posted.get("listing_category")
-                or posted.get("tags_category")
-                or "uncategorized"
-            ).lower()
-            platform = (posted.get("platform") or "unspecified").lower()
-            views = float(posted.get("views", 0) or 0)
-            leads = float(posted.get("leads", 0) or 0)
-
-            category_stats[category]["views"] += views
-            category_stats[category]["leads"] += leads
-            category_stats[category]["platforms"][platform] += 1
-            platform_stats[platform]["count"] += 1
-            platform_stats[platform]["views"] += views
-            platform_stats[platform]["leads"] += leads
-
-            created_at = _parse_datetime(posted.get("created_at"))
-            if created_at and created_at >= lookback:
-                hour_stats[created_at.hour]["leads"] += leads or 0
-                hour_stats[created_at.hour]["count"] += 1
-
-        if not category_stats:
-            # provide generic insights if no data
-            default_categories = [cfg.platform for cfg in PLATFORM_CONFIGS.values()]
-            return (
-                {
-                    "category_trends": [
-                        {
-                            "category": name,
-                            "share_of_posts": round(1 / len(default_categories), 3),
-                            "demand_score": 0.5,
-                            "recommendation": "Post consistently to gather performance data.",
-                        }
-                        for name in default_categories
-                    ],
-                    "peak_activity": [
-                        {"hour": 20, "label": "8 PM", "confidence": "low"}
-                    ],
-                    "platform_mix": [
-                        {
-                            "platform": key,
-                            "share": round(1 / len(PLATFORM_CONFIGS), 3),
-                            "conversion_rate": 0.0,
-                        }
-                        for key in PLATFORM_CONFIGS.keys()
-                    ],
-                    "growth_actions": [
-                        "Connect your marketplaces to unlock personalized recommendations.",
-                        "Import historical listings so we can calculate momentum trends.",
-                    ],
-                },
-                issues,
-            )
-
-        total_posts = sum(stat["count"] for stat in category_stats.values()) or 1
-        category_trends = []
-        for category, stat in category_stats.items():
-            conversion = (stat["leads"] + 1) / (stat["views"] + 1)
-            demand_score = round(
-                ((stat["count"] / total_posts) * 0.6) + (conversion * 0.4), 3
-            )
-            recommendation = (
-                "Double down on this category; it converts above average."
-                if conversion >= 0.08
-                else "Improve photos & pricing to raise conversion."
-            )
-            category_trends.append(
-                {
-                    "category": category.title(),
-                    "share_of_posts": round(stat["count"] / total_posts, 3),
-                    "demand_score": demand_score,
-                    "conversion_rate": round(conversion, 3),
-                    "leading_platforms": sorted(
-                        stat["platforms"].keys(),
-                        key=lambda key: stat["platforms"][key],
-                        reverse=True,
-                    )[:3],
-                    "recommendation": recommendation,
-                }
-            )
-
-        category_trends.sort(key=lambda item: item["demand_score"], reverse=True)
-
-        peak_activity = []
-        for hour, stat in sorted(
-            hour_stats.items(), key=lambda kv: kv[1]["leads"], reverse=True
-        )[:4]:
-            label = f"{hour:02d}:00"
-            confidence = (
-                "high"
-                if stat["leads"] >= 5
-                else "medium"
-                if stat["leads"] >= 2
-                else "low"
-            )
-            peak_activity.append(
-                {"hour": hour, "label": label, "confidence": confidence}
-            )
-
-        platform_mix = []
-        total_platform_posts = (
-            sum(stat["count"] for stat in platform_stats.values()) or 1
-        )
-        for platform, stat in platform_stats.items():
-            conversion = (stat["leads"] + 1) / (stat["views"] + 1)
-            platform_mix.append(
-                {
-                    "platform": platform,
-                    "share": round(stat["count"] / total_platform_posts, 3),
-                    "conversion_rate": round(conversion, 3),
-                }
-            )
-
-        platform_mix.sort(key=lambda item: item["conversion_rate"], reverse=True)
-
-        growth_actions: List[str] = []
-        if category_trends:
-            best = category_trends[0]
-            growth_actions.append(
-                f"Create 3 new {best['category']} listings this week; demand score {best['demand_score']}."
-            )
-        if peak_activity:
-            slot = peak_activity[0]
-            growth_actions.append(
-                f"Schedule posts around {slot['label']} when buyers are most active ({slot['confidence']} confidence)."
-            )
-        underperformers = [p for p in platform_mix if p["conversion_rate"] < 0.05]
-        if underperformers:
-            names = ", ".join(p["platform"].title() for p in underperformers[:3])
-            growth_actions.append(
-                f"Refresh copy & pricing on {names}; conversion is lagging below 5%."
-            )
-
-        return (
-            {
-                "category_trends": category_trends,
-                "peak_activity": peak_activity,
-                "platform_mix": platform_mix,
-                "growth_actions": growth_actions,
-            },
-            issues,
-        )
 
 
 async def generate_tags(
@@ -650,6 +435,268 @@ def build_dynamic_suggestions(listing: ListingInput, platform_key: str) -> List[
     return suggestions
 
 
+def _parse_datetime(value: Any) -> datetime | None:
+    if not value:
+        return None
+    if isinstance(value, datetime):
+        return value
+    try:
+        text = str(value)
+        if text.endswith("Z"):
+            text = text.replace("Z", "+00:00")
+        return datetime.fromisoformat(text)
+    except Exception:
+        return None
+
+
+async def _run_supabase_query(func: Callable[[], Any], description: str) -> Any:
+    loop = asyncio.get_running_loop()
+    try:
+        return await asyncio.wait_for(
+            loop.run_in_executor(None, func), SUPABASE_QUERY_TIMEOUT_SECONDS
+        )
+    except asyncio.TimeoutError as exc:
+        raise TimeoutError(
+            f"{description} timed out after {SUPABASE_QUERY_TIMEOUT_SECONDS}s"
+        ) from exc
+
+
+def _get_cached_trending(
+    user_id: str, days: int
+) -> Tuple[Dict[str, Any], List[str]] | None:
+    key = (user_id, days)
+    entry = _TRENDING_CACHE.get(key)
+    if not entry:
+        return None
+    timestamp, insights, issues = entry
+    if (time.time() - timestamp) > TRENDING_CACHE_TTL_SECONDS:
+        _TRENDING_CACHE.pop(key, None)
+        return None
+    return copy.deepcopy(insights), copy.deepcopy(issues)
+
+
+def _set_cached_trending(
+    user_id: str, days: int, insights: Dict[str, Any], issues: List[str]
+) -> None:
+    _TRENDING_CACHE[(user_id, days)] = (
+        time.time(),
+        copy.deepcopy(insights),
+        copy.deepcopy(issues),
+    )
+
+
+async def _calculate_trending_insights(
+    user_id: str, days: int = 14
+) -> Tuple[Dict[str, Any], List[str]]:
+    cached = _get_cached_trending(user_id, days)
+    if cached:
+        return cached
+
+    lookback = datetime.utcnow() - timedelta(days=days)
+    category_stats: Dict[str, Dict[str, Any]] = defaultdict(
+        lambda: {"count": 0, "views": 0, "leads": 0, "platforms": defaultdict(int)}
+    )
+    hour_stats: Dict[int, Dict[str, float]] = defaultdict(
+        lambda: {"count": 0, "leads": 0}
+    )
+    platform_stats: Dict[str, Dict[str, float]] = defaultdict(
+        lambda: {"count": 0, "views": 0, "leads": 0}
+    )
+    issues: List[str] = []
+
+    client = get_supabase()
+    listings_data: List[Dict[str, Any]] = []
+    posted_ads: List[Dict[str, Any]] = []
+
+    if client:
+        try:
+            listings_resp = await _run_supabase_query(
+                lambda: (
+                    client.table("listings")
+                    .select("*")
+                    .eq("user_id", user_id)
+                    .gte("created_at", lookback.isoformat())
+                    .limit(500)
+                    .execute()
+                ),
+                "Listings lookup",
+            )
+            listings_data = listings_resp.data or []
+        except TimeoutError as exc:
+            issues.append(str(exc))
+        except Exception as exc:
+            issues.append(f"Unable to load listings from Supabase: {exc}")
+
+        try:
+            posted_resp = await _run_supabase_query(
+                lambda: (
+                    client.table("posted_ads")
+                    .select("*")
+                    .eq("user_id", user_id)
+                    .gte("created_at", lookback.isoformat())
+                    .limit(1000)
+                    .execute()
+                ),
+                "Posted ads lookup",
+            )
+            posted_ads = posted_resp.data or []
+        except TimeoutError as exc:
+            issues.append(str(exc))
+        except Exception as exc:
+            issues.append(f"Unable to load posted ads: {exc}")
+    else:
+        issues.append(
+            "Supabase client not configured; returning heuristic recommendations."
+        )
+
+    for listing in listings_data:
+        category = (listing.get("category") or "uncategorized").lower()
+        category_stats[category]["count"] += 1
+        platform_hint = (
+            listing.get("platform")
+            or listing.get("platform_hint")
+            or listing.get("primary_platform")
+            or "unspecified"
+        )
+        category_stats[category]["platforms"][platform_hint] += 1
+        created_at = _parse_datetime(listing.get("created_at"))
+        if created_at and created_at >= lookback:
+            hour_stats[created_at.hour]["count"] += 1
+
+    for posted in posted_ads:
+        category = (
+            posted.get("category")
+            or posted.get("listing_category")
+            or posted.get("tags_category")
+            or "uncategorized"
+        ).lower()
+        platform = (posted.get("platform") or "unspecified").lower()
+        views = float(posted.get("views", 0) or 0)
+        leads = float(posted.get("leads", 0) or 0)
+
+        category_stats[category]["views"] += views
+        category_stats[category]["leads"] += leads
+        category_stats[category]["platforms"][platform] += 1
+        platform_stats[platform]["count"] += 1
+        platform_stats[platform]["views"] += views
+        platform_stats[platform]["leads"] += leads
+
+        created_at = _parse_datetime(posted.get("created_at"))
+        if created_at and created_at >= lookback:
+            hour_stats[created_at.hour]["leads"] += leads or 0
+            hour_stats[created_at.hour]["count"] += 1
+
+    if not category_stats:
+        # provide generic insights if no data
+        default_categories = [cfg.platform for cfg in PLATFORM_CONFIGS.values()]
+        insights = {
+            "category_trends": [
+                {
+                    "category": name,
+                    "share_of_posts": round(1 / len(default_categories), 3),
+                    "demand_score": 0.5,
+                    "recommendation": "Post consistently to gather performance data.",
+                }
+                for name in default_categories
+            ],
+            "peak_activity": [{"hour": 20, "label": "8 PM", "confidence": "low"}],
+            "platform_mix": [
+                {
+                    "platform": key,
+                    "share": round(1 / len(PLATFORM_CONFIGS), 3),
+                    "conversion_rate": 0.0,
+                }
+                for key in PLATFORM_CONFIGS.keys()
+            ],
+            "growth_actions": [
+                "Connect your marketplaces to unlock personalized recommendations.",
+                "Import historical listings so we can calculate momentum trends.",
+            ],
+        }
+        _set_cached_trending(user_id, days, insights, issues)
+        return insights, issues
+
+    total_posts = sum(stat["count"] for stat in category_stats.values()) or 1
+    category_trends = []
+    for category, stat in category_stats.items():
+        conversion = (stat["leads"] + 1) / (stat["views"] + 1)
+        demand_score = round(
+            ((stat["count"] / total_posts) * 0.6) + (conversion * 0.4), 3
+        )
+        recommendation = (
+            "Double down on this category; it converts above average."
+            if conversion >= 0.08
+            else "Improve photos & pricing to raise conversion."
+        )
+        category_trends.append(
+            {
+                "category": category.title(),
+                "share_of_posts": round(stat["count"] / total_posts, 3),
+                "demand_score": demand_score,
+                "conversion_rate": round(conversion, 3),
+                "leading_platforms": sorted(
+                    stat["platforms"].keys(),
+                    key=lambda key: stat["platforms"][key],
+                    reverse=True,
+                )[:3],
+                "recommendation": recommendation,
+            }
+        )
+
+    category_trends.sort(key=lambda item: item["demand_score"], reverse=True)
+
+    peak_activity = []
+    for hour, stat in sorted(
+        hour_stats.items(), key=lambda kv: kv[1]["leads"], reverse=True
+    )[:4]:
+        label = f"{hour:02d}:00"
+        confidence = (
+            "high" if stat["leads"] >= 5 else "medium" if stat["leads"] >= 2 else "low"
+        )
+        peak_activity.append({"hour": hour, "label": label, "confidence": confidence})
+
+    platform_mix = []
+    total_platform_posts = sum(stat["count"] for stat in platform_stats.values()) or 1
+    for platform, stat in platform_stats.items():
+        conversion = (stat["leads"] + 1) / (stat["views"] + 1)
+        platform_mix.append(
+            {
+                "platform": platform,
+                "share": round(stat["count"] / total_platform_posts, 3),
+                "conversion_rate": round(conversion, 3),
+            }
+        )
+
+    platform_mix.sort(key=lambda item: item["conversion_rate"], reverse=True)
+
+    growth_actions: List[str] = []
+    if category_trends:
+        best = category_trends[0]
+        growth_actions.append(
+            f"Create 3 new {best['category']} listings this week; demand score {best['demand_score']}."
+        )
+    if peak_activity:
+        slot = peak_activity[0]
+        growth_actions.append(
+            f"Schedule posts around {slot['label']} when buyers are most active ({slot['confidence']} confidence)."
+        )
+    underperformers = [p for p in platform_mix if p["conversion_rate"] < 0.05]
+    if underperformers:
+        names = ", ".join(p["platform"].title() for p in underperformers[:3])
+        growth_actions.append(
+            f"Refresh copy & pricing on {names}; conversion is lagging below 5%."
+        )
+
+    insights = {
+        "category_trends": category_trends,
+        "peak_activity": peak_activity,
+        "platform_mix": platform_mix,
+        "growth_actions": growth_actions,
+    }
+    _set_cached_trending(user_id, days, insights, issues)
+    return insights, issues
+
+
 # ============================================================================
 # API Endpoints
 # ============================================================================
@@ -764,11 +811,16 @@ async def generate_bulk(
 @router.get("/trending")
 async def get_trending_recommendations(
     days: int = 14,
+    force_refresh: bool = Query(
+        False, description="Bypass cache and recompute trending insights"
+    ),
     current_user: str = Depends(get_current_user),
 ) -> Dict[str, Any]:
     """Return trending categories, peak posting windows, and growth actions."""
 
-    insights, issues = _calculate_trending_insights(current_user, days)
+    if force_refresh:
+        _TRENDING_CACHE.pop((current_user, days), None)
+    insights, issues = await _calculate_trending_insights(current_user, days)
     insights.update(
         {
             "timeframe_days": days,

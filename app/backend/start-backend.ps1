@@ -5,7 +5,7 @@ param(
     [switch]$Foreground
 )
 
-$venvPy = Join-Path $PSScriptRoot '.\.venv\bin\python'
+$venvPy = Join-Path $PSScriptRoot '.\.venv\Scripts\python.exe'
 $uvicornArgs = @('-m','uvicorn','server:app','--reload','--host','0.0.0.0','--port','8000','--log-level','info')
 
 if ($Foreground) {

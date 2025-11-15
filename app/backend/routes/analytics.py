@@ -3,10 +3,15 @@ Analytics Routes
 
 Provides analytics and reporting endpoints for user data, listings performance,
 and platform metrics.
+"""
+
+import copy
 import logging
 import os
+import time
+from collections import defaultdict
 from datetime import datetime, timedelta
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Tuple
 
 from auth import get_current_user
 from db import get_typed_db
@@ -18,6 +23,10 @@ PARALLEL_WRITE = os.getenv("PARALLEL_WRITE", "true").lower() in ("true", "1", "y
 
 router = APIRouter(prefix="/api/analytics", tags=["analytics"])
 logger = logging.getLogger(__name__)
+
+RECOMMENDATIONS_CACHE_TTL_SECONDS = 300
+_RECOMMENDATIONS_CACHE: Dict[str, Tuple[float, Dict[str, Any]]] = {}
+SUPABASE_QUERY_TIMEOUT_SECONDS = float(os.getenv("SUPABASE_QUERY_TIMEOUT", "8"))
 
 
 # Dashboard Stats (already implemented in ads.py, but adding here for completeness)
@@ -323,10 +332,22 @@ async def get_performance_metrics(
 @router.get("/recommendations")
 async def get_growth_recommendations(
     user_id: str = Depends(get_current_user),
+    force_refresh: bool = Query(
+        False, description="Bypass cache and recompute recommendations"
+    ),
 ) -> Dict[str, Any]:
     """Return actionable growth strategies based on recent performance."""
 
-    return _build_growth_recommendations(user_id)
+    if force_refresh:
+        _RECOMMENDATIONS_CACHE.pop(user_id, None)
+    else:
+        cached = _get_cached_recommendations(user_id)
+        if cached:
+            return cached
+
+    data = _build_growth_recommendations(user_id)
+    _set_cached_recommendations(user_id, data)
+    return data
 
 
 def _parse_datetime(value: Any) -> datetime | None:
@@ -343,7 +364,37 @@ def _parse_datetime(value: Any) -> datetime | None:
         return None
 
 
-def _build_growth_recommendations(user_id: str) -> Dict[str, Any]:
+def _get_cached_recommendations(user_id: str) -> Dict[str, Any] | None:
+    entry = _RECOMMENDATIONS_CACHE.get(user_id)
+    if not entry:
+        return None
+    timestamp, payload = entry
+    if (time.time() - timestamp) > RECOMMENDATIONS_CACHE_TTL_SECONDS:
+        _RECOMMENDATIONS_CACHE.pop(user_id, None)
+        return None
+    return copy.deepcopy(payload)
+
+
+def _set_cached_recommendations(user_id: str, payload: Dict[str, Any]) -> None:
+    _RECOMMENDATIONS_CACHE[user_id] = (
+        time.time(),
+        copy.deepcopy(payload),
+    )
+
+
+async def _run_supabase_query(func: Callable[[], Any], description: str) -> Any:
+    loop = asyncio.get_running_loop()
+    try:
+        return await asyncio.wait_for(
+            loop.run_in_executor(None, func), SUPABASE_QUERY_TIMEOUT_SECONDS
+        )
+    except asyncio.TimeoutError as exc:
+        raise TimeoutError(
+            f"{description} timed out after {SUPABASE_QUERY_TIMEOUT_SECONDS}s"
+        ) from exc
+
+
+async def _build_growth_recommendations(user_id: str) -> Dict[str, Any]:
     from supabase_db import get_supabase
 
     diagnostics: List[str] = []
@@ -381,7 +432,9 @@ def _build_growth_recommendations(user_id: str) -> Dict[str, Any]:
         except Exception as exc:
             diagnostics.append(f"Unable to load listings metadata: {exc}")
     else:
-        diagnostics.append("Supabase not configured; returning generic recommendations.")
+        diagnostics.append(
+            "Supabase not configured; returning generic recommendations."
+        )
 
     platform_stats = defaultdict(
         lambda: {"count": 0, "views": 0.0, "leads": 0.0, "clicks": 0.0}
@@ -406,10 +459,13 @@ def _build_growth_recommendations(user_id: str) -> Dict[str, Any]:
     total_posts = sum(stat["count"] for stat in platform_stats.values())
     avg_conversion = 0.0
     if total_posts:
-        avg_conversion = sum(
-            ((stat["leads"] + 1) / (stat["views"] + 1)) * stat["count"]
-            for stat in platform_stats.values()
-        ) / total_posts
+        avg_conversion = (
+            sum(
+                ((stat["leads"] + 1) / (stat["views"] + 1)) * stat["count"]
+                for stat in platform_stats.values()
+            )
+            / total_posts
+        )
 
     if total_posts == 0:
         recommendations.append(
@@ -442,7 +498,7 @@ def _build_growth_recommendations(user_id: str) -> Dict[str, Any]:
                 {
                     "priority": "high",
                     "title": f"Improve conversion on {target['platform'].title()}",
-                    "detail": f"Conversion is {target['conversion']*100:.1f}% with {target['posts']} posts.",
+                    "detail": f"Conversion is {target['conversion'] * 100:.1f}% with {target['posts']} posts.",
                     "action": "Refresh photos, tighten pricing, and respond faster to leads on this platform.",
                 }
             )
@@ -454,7 +510,7 @@ def _build_growth_recommendations(user_id: str) -> Dict[str, Any]:
                 {
                     "priority": "medium",
                     "title": f"Scale {hero['platform'].title()} listings",
-                    "detail": f"This channel converts at {hero['conversion']*100:.1f}% across {hero['posts']} posts.",
+                    "detail": f"This channel converts at {hero['conversion'] * 100:.1f}% across {hero['posts']} posts.",
                     "action": "Clone top-performing templates and double the weekly volume.",
                 }
             )
