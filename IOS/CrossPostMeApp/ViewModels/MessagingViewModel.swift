@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import Combine
 
 @MainActor
 final class MessagingViewModel: ObservableObject {
@@ -21,11 +22,18 @@ final class MessagingViewModel: ObservableObject {
 
     private let service: MessagingServicing
     private let aiService: AIComposeServicing
+    private var cancellables: Set<AnyCancellable> = []
 
     init(service: MessagingServicing = MessagingService(),
          aiService: AIComposeServicing = AIComposeService()) {
         self.service = service
         self.aiService = aiService
+        SupabaseRealtimeCoordinator.shared.chatPublisher
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] message in
+                self?.applyRealtimeMessage(message)
+            }
+            .store(in: &cancellables)
     }
 
     func loadInitialData() {
@@ -131,5 +139,14 @@ final class MessagingViewModel: ObservableObject {
         await MainActor.run {
             sentimentByMessage = updated
         }
+    }
+
+    private func applyRealtimeMessage(_ message: ChatMessage) {
+        if chatHistory.contains(where: { $0.id == message.id }) {
+            return
+        }
+        chatHistory.insert(message, at: 0)
+        NotificationManager.shared.recordLatestMessage(message.id)
+        Task { await analyzeSentiment() }
     }
 }

@@ -63,6 +63,23 @@ The `CrossPostMeApp` directory now contains a SwiftUI-first architecture with de
     - Optionally expose a `/api/features` endpoint to toggle AI assists remotely.
     - Monitor usage/latency to stay within Azure quotas.
 
+### Realtime Supabase sync
+
+1. **Dependency**
+
+    - Add the [`supabase-community/supabase-swift`](https://github.com/supabase-community/supabase-swift) package to the Xcode project (SPM).
+    - Link it to the `CrossPostMeApp` target.
+
+1. **Configuration**
+
+    - Populate `supabaseURL` and `supabaseAnonKey` in `Resources/Config.plist`. Keep real keys out of source control by using local overrides or CI secrets.
+    - Enable Realtime on the `status_entries` and `chat_messages` tables (or update the table names inside `SupabaseRealtimeCoordinator` to match your schema).
+
+1. **Behavior**
+
+    - `SupabaseRealtimeCoordinator` streams inserts/updates into the status feed and chat timeline; ViewModels merge records without requiring manual refresh.
+    - The coordinator automatically disconnects on logout to conserve resources.
+
 ### Local development
 
 - Requires macOS/Xcode (the `xcodebuild` tool is unavailable on Windows).

@@ -28,10 +28,8 @@ final class SupabaseRealtimeCoordinator {
 
     func connectIfPossible(authToken: String?) {
         #if canImport(Supabase)
-        if client != nil {
-            setRealtimeAuth(token: authToken)
-            return
-        }
+        _ = authToken
+        if client != nil { return }
 
         guard let supabaseURL = AppConfig.current.supabaseURL,
               let supabaseAnonKey = AppConfig.current.supabaseAnonKey else {
@@ -40,7 +38,6 @@ final class SupabaseRealtimeCoordinator {
         }
 
         client = SupabaseClient(supabaseURL: supabaseURL, supabaseKey: supabaseAnonKey)
-        setRealtimeAuth(token: authToken)
         Task { await subscribeToChannels() }
         #endif
     }
@@ -61,15 +58,6 @@ final class SupabaseRealtimeCoordinator {
     // MARK: - Private helpers
 
     #if canImport(Supabase)
-    private func setRealtimeAuth(token: String?) {
-        guard let client else { return }
-        if let token {
-            client.realtime.setAuth(token)
-        } else {
-            client.realtime.setAuth(nil)
-        }
-    }
-
     private func subscribeToChannels() async {
         await subscribeToStatuses()
         await subscribeToChatMessages()
@@ -114,4 +102,3 @@ final class SupabaseRealtimeCoordinator {
     }
     #endif
 }
-*** End Patch

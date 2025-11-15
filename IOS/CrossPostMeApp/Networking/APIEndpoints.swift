@@ -10,6 +10,8 @@ enum APIEndpoint {
     case health
     case readiness
     case registerDeviceToken
+    case healthHistory
+    case healthIncidents
 
     var path: String {
         switch self {
@@ -26,6 +28,8 @@ enum APIEndpoint {
         case .health: return "/api/health"
         case .readiness: return "/api/ready"
         case .registerDeviceToken: return "/api/device-tokens"
+        case .healthHistory: return "/api/health/history"
+        case .healthIncidents: return "/api/health/incidents"
         }
     }
 }

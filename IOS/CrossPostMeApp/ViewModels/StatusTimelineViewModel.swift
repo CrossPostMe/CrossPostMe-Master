@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import Combine
 
 @MainActor
 final class StatusTimelineViewModel: ObservableObject {
@@ -16,9 +17,16 @@ final class StatusTimelineViewModel: ObservableObject {
     }
 
     private let service: StatusServicing
+    private var cancellables: Set<AnyCancellable> = []
 
     init(service: StatusServicing = StatusService()) {
         self.service = service
+        SupabaseRealtimeCoordinator.shared.statusPublisher
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] entry in
+                self?.applyRealtimeStatus(entry)
+            }
+            .store(in: &cancellables)
     }
 
     func reloadIfPossible() async {
@@ -53,5 +61,14 @@ final class StatusTimelineViewModel: ObservableObject {
         } catch {
             errorMessage = (error as? APIError)?.localizedDescription ?? error.localizedDescription
         }
+    }
+
+    private func applyRealtimeStatus(_ entry: StatusEntry) {
+        if let index = statuses.firstIndex(where: { $0.id == entry.id }) {
+            statuses[index] = entry
+        } else {
+            statuses.insert(entry, at: 0)
+        }
+        NotificationManager.shared.recordLatestStatus(entry.id)
     }
 }
