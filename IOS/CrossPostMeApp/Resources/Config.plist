@@ -14,5 +14,9 @@
     <string>2024-02-15-preview</string>
     <key>azureOpenAIAPIKey</key>
     <string>YOUR_AZURE_OPENAI_KEY</string>
+    <key>supabaseURL</key>
+    <string>https://your-project.supabase.co</string>
+    <key>supabaseAnonKey</key>
+    <string>YOUR_SUPABASE_ANON_KEY</string>
 </dict>
 </plist>

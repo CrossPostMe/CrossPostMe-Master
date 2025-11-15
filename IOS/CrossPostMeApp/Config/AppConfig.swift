@@ -30,5 +30,7 @@ enum AppConfig {
         let azureOpenAIDeployment: String?
         let azureOpenAIAPIVersion: String?
         let azureOpenAIAPIKey: String?
+        let supabaseURL: URL?
+        let supabaseAnonKey: String?
     }
 }
