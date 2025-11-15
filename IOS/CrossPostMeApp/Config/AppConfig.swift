@@ -26,5 +26,9 @@ enum AppConfig {
     struct Configuration: Codable {
         let apiBaseURL: URL
         let enableVerboseLogging: Bool
+        let azureOpenAIBaseURL: URL?
+        let azureOpenAIDeployment: String?
+        let azureOpenAIAPIVersion: String?
+        let azureOpenAIAPIKey: String?
     }
 }

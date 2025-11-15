@@ -12,13 +12,20 @@ final class MessagingViewModel: ObservableObject {
     @Published private(set) var isRefreshingHistory = false
     @Published var errorMessage: String?
     @Published var successBanner: String?
+    @Published var aiSuggestion: String?
+    @Published private(set) var isGeneratingSuggestion = false
+    @Published private(set) var sentimentByMessage: [UUID: Sentiment] = [:]
+    @Published private(set) var isAnalyzingSentiment = false
 
     var authToken: String?
 
     private let service: MessagingServicing
+    private let aiService: AIComposeServicing
 
-    init(service: MessagingServicing = MessagingService()) {
+    init(service: MessagingServicing = MessagingService(),
+         aiService: AIComposeServicing = AIComposeService()) {
         self.service = service
+        self.aiService = aiService
     }
 
     func loadInitialData() {
@@ -35,6 +42,7 @@ final class MessagingViewModel: ObservableObject {
         do {
             chatHistory = try await service.fetchChatHistory(authToken: token)
             NotificationManager.shared.recordLatestMessage(chatHistory.first?.id)
+            await analyzeSentiment()
         } catch {
             errorMessage = (error as? APIError)?.localizedDescription ?? error.localizedDescription
         }
@@ -70,6 +78,58 @@ final class MessagingViewModel: ObservableObject {
             }
         } catch {
             errorMessage = (error as? APIError)?.localizedDescription ?? error.localizedDescription
+        }
+    }
+
+    func requestAISuggestion() async {
+        guard !isGeneratingSuggestion else { return }
+        isGeneratingSuggestion = true
+        errorMessage = nil
+        defer { isGeneratingSuggestion = false }
+
+        var context = chatHistory.prefix(5).map { "\($0.sender): \($0.body)" }.joined(separator: "\n")
+        if context.isEmpty {
+            context = body.isEmpty ? "No prior history" : body
+        }
+
+        do {
+            let suggestion = try await aiService.generateReply(context: context, channel: selectedChannel)
+            await MainActor.run {
+                aiSuggestion = suggestion
+                body = suggestion
+            }
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func dismissAISuggestion() {
+        aiSuggestion = nil
+    }
+
+    func acceptAISuggestion() {
+        guard let suggestion = aiSuggestion else { return }
+        body = suggestion
+    }
+
+    private func analyzeSentiment() async {
+        guard !chatHistory.isEmpty else {
+            sentimentByMessage = [:]
+            return
+        }
+        isAnalyzingSentiment = true
+        defer { isAnalyzingSentiment = false }
+        var updated: [UUID: Sentiment] = [:]
+        for message in chatHistory.prefix(20) {
+            do {
+                let sentiment = try await aiService.analyzeSentiment(for: message.body)
+                updated[message.id] = sentiment
+            } catch {
+                continue
+            }
+        }
+        await MainActor.run {
+            sentimentByMessage = updated
         }
     }
 }

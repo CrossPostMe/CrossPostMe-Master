@@ -34,17 +34,34 @@ The `CrossPostMeApp` directory now contains a SwiftUI-first architecture with de
 
 1. **Apple Developer setup**
 
-  - Enable *Push Notifications* and *Background Modes → Remote notifications + Background fetch* in the Xcode target capabilities.
-  - Register the background task identifier `com.crosspostme.app.refresh` under `BGTaskSchedulerPermittedIdentifiers` in `Info.plist`.
+- Enable *Push Notifications* and *Background Modes → Remote notifications + Background fetch* in the Xcode target capabilities.
+- Register the background task identifier `com.crosspostme.app.refresh` under `BGTaskSchedulerPermittedIdentifiers` in `Info.plist`.
 
 1. **Server hook**
 
-  - Implement `POST /api/device-tokens` to store the APNs token (sample payload `{ token, platform })`.
-  - Trigger APNs (e.g., via Supabase function or Azure Function) when new statuses or chat messages arrive.
+- Implement `POST /api/device-tokens` to store the APNs token (sample payload `{ token, platform })`.
+- Trigger APNs (e.g., via Supabase function or Azure Function) when new statuses or chat messages arrive.
 
 1. **App behavior**
 
-  - `NotificationManager` now handles permission prompts, APNs token registration, local notifications, and background refresh fetches.
+- `NotificationManager` now handles permission prompts, APNs token registration, local notifications, and background refresh fetches.
+
+### AI assists (Azure OpenAI)
+
+1. **Configuration**
+
+    - Update `Resources/Config.plist` with `azureOpenAIBaseURL`, `azureOpenAIDeployment`, `azureOpenAIAPIVersion`, and set `azureOpenAIAPIKey` via secure secret management.
+    - Never commit real keys; keep placeholders locally and load secrets through CI or environment injection.
+
+1. **Feature behavior**
+
+    - `AIComposeService` powers "Suggest reply" in the messaging tab and sentiment tagging for chat history.
+    - The service calls Azure OpenAI chat completions with a lightweight prompt; adjust temperature/deployment as needed.
+
+1. **Backend considerations**
+
+    - Optionally expose a `/api/features` endpoint to toggle AI assists remotely.
+    - Monitor usage/latency to stay within Azure quotas.
 
 ### Local development
 
@@ -79,4 +96,4 @@ jobs:
           xcodebuild -scheme CrossPostMeApp -destination 'platform=iOS Simulator,name=iPhone 15' test
 ```
 
-This keeps the iOS codebase aligned with the backend contract while we continue fleshing out advanced messaging and health-monitoring features.
+This keeps the iOS codebase aligned with the backend contract while we continue fleshing out advanced messaging and health-monitoring

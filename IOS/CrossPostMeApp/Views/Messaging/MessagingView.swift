@@ -11,6 +11,7 @@ struct MessagingView: View {
                     channelPicker
                     recipientFields
                     bodyField
+                    aiAssistantSection
                     sendButton
                     historySection
                 }
@@ -21,6 +22,10 @@ struct MessagingView: View {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Refresh") { Task { await viewModel.refreshHistory() } }
                         .disabled(viewModel.isRefreshingHistory)
+                }
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Suggest Reply") { Task { await viewModel.requestAISuggestion() } }
+                        .disabled(viewModel.isGeneratingSuggestion)
                 }
             }
             .onAppear(perform: syncAuthToken)
@@ -86,6 +91,44 @@ struct MessagingView: View {
         }
     }
 
+    private var aiAssistantSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("AI Assist")
+                    .font(.headline)
+                Spacer()
+                if viewModel.isGeneratingSuggestion {
+                    ProgressView()
+                } else {
+                    Button("Suggest draft") {
+                        Task { await viewModel.requestAISuggestion() }
+                    }
+                }
+            }
+            if let suggestion = viewModel.aiSuggestion {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(suggestion)
+                        .font(.body)
+                    HStack {
+                        Button("Use suggestion") {
+                            viewModel.acceptAISuggestion()
+                        }
+                        Button("Dismiss", role: .destructive) {
+                            viewModel.dismissAISuggestion()
+                        }
+                    }
+                    .buttonStyle(.bordered)
+                }
+                .padding()
+                .background(.ultraThickMaterial, in: RoundedRectangle(cornerRadius: 12))
+            } else {
+                Text("Let Azure AI craft a contextual reply for you.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
     private var historySection: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
@@ -112,12 +155,31 @@ struct MessagingView: View {
                                 .foregroundStyle(.secondary)
                         }
                         Text(message.body)
+                        if let sentiment = viewModel.sentimentByMessage[message.id] {
+                            sentimentChip(for: sentiment)
+                        }
                     }
                     .padding()
                     .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 12))
                 }
             }
         }
+    }
+
+    private func sentimentChip(for sentiment: Sentiment) -> some View {
+        let (text, color, icon): (String, Color, String) = {
+            switch sentiment {
+            case .positive: return ("Positive", .green, "hand.thumbsup.fill")
+            case .neutral: return ("Neutral", .gray, "minus.circle")
+            case .negative: return ("Negative", .red, "exclamationmark.triangle.fill")
+            }
+        }()
+        return Label(text, systemImage: icon)
+            .font(.caption)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 4)
+            .background(color.opacity(0.15), in: Capsule())
+            .foregroundStyle(color)
     }
 
     private func syncAuthToken() {

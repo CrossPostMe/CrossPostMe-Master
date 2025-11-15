@@ -6,5 +6,13 @@
     <string>https://api.example.com</string>
     <key>enableVerboseLogging</key>
     <false/>
+    <key>azureOpenAIBaseURL</key>
+    <string>https://your-azure-openai-resource.openai.azure.com</string>
+    <key>azureOpenAIDeployment</key>
+    <string>gpt-4o-mini</string>
+    <key>azureOpenAIAPIVersion</key>
+    <string>2024-02-15-preview</string>
+    <key>azureOpenAIAPIKey</key>
+    <string>YOUR_AZURE_OPENAI_KEY</string>
 </dict>
 </plist>
